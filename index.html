@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pronos 2026 — Ligue 1, Ligue des Champions, Ligue des Nations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ============================================================
+   VARIABLES & BASE
+   ============================================================ */
+:root {
+    --bg-body: #f1f5f9;
+    --bg-card: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --primary: #0f2557;
+    --accent: #ff0055;
+    --gold: #e5b842;
+    --silver: #aab4c0;
+    --bronze: #cd7f32;
+    --bg-input: #ffffff;
+    --bg-match: #f8fafc;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+    --transition: all 0.2s ease;
+    --header-bg: linear-gradient(120deg, #0f2557 0%, #6c1947 55%, #ff0055 100%);
+}
+body.dark-mode {
+    --bg-body: #070f24;
+    --bg-card: #111c3a;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #1e293b;
+    --primary: #38bdf8;
+    --bg-input: #1e293b;
+    --bg-match: #16224f;
+    --shadow: 0 4px 12px rgba(0,0,0,0.35);
+    --header-bg: #030712;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; transition: background-color var(--transition), border-color var(--transition); }
+body { font-family: 'Montserrat', system-ui, sans-serif; background: var(--bg-body); color: var(--text-main); padding-bottom: 60px; }
+h1,h2,h3 { font-weight: 800; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.header { background: var(--header-bg); color: #fff; padding: 20px; border-bottom: 4px solid var(--accent); }
+.header-inner { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
+.logo-title-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.logo-area h1 { font-size: 1.4rem; }
+.logo-area .accent { color: var(--accent); }
+.subtitle { font-size: 0.78rem; color: #cbd5e1; margin-top: 2px; }
+.btn-theme-toggle { background: #1f2937; color: #f3f4f6; border: 1px solid #374151; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; }
+
+.auth-bar { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); }
+.auth-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.auth-field { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.35); padding: 9px 12px; border-radius: 6px; font-size: .85rem; font-weight: 600; flex: 1 1 130px; min-width: 0; }
+.auth-field::placeholder { color: rgba(255,255,255,0.65); }
+.avatar-select { padding: 7px 8px; font-size: 1rem; border-radius: 6px; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.35); }
+.auth-container { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.link-btn { background: none; border: none; color: #cbd5e1; text-decoration: underline; font-size: 0.78rem; }
+.btn-auth { background: var(--accent); color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 700; font-size: .85rem; }
+.logged-in-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.user-pill { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); padding: 6px 12px; border-radius: 20px; font-weight: 700; }
+.btn-logout { background: transparent; border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .78rem; font-weight: 600; }
+
+/* ============================================================
+   NAV / TABS
+   ============================================================ */
+.nav-tabs { max-width: 1200px; margin: 18px auto 0; padding: 0 20px 4px; display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.tab { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: .85rem; box-shadow: var(--shadow); flex: 0 0 auto; white-space: nowrap; }
+.tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+body.dark-mode .tab.active { color: #061021; }
+
+.page-wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.container { display: none; }
+.container.active { display: block; }
+
+/* ============================================================
+   CARDS / PHASES / MATCHES
+   ============================================================ */
+.comp-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+.comp-header h2 { font-size: 1.3rem; }
+.comp-header .comp-sub { color: var(--text-muted); font-size: .85rem; }
+
+.phase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); }
+.phase-title { font-weight: 800; color: var(--primary); font-size: 1.02rem; margin-bottom: 12px; }
+
+.match-row { background: var(--bg-match); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; }
+.match-row:hover { border-color: var(--accent); }
+.match-teams { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: .92rem; }
+.match-score-view { font-weight: 800; color: var(--accent); font-size: 1rem; min-width: 50px; text-align: center; }
+.match-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: .72rem; color: var(--text-muted); }
+.match-meta-right { display: flex; gap: 6px; align-items: center; }
+
+.badge { padding: 3px 9px; border-radius: 12px; font-size: .68rem; font-weight: 700; }
+.badge-upcoming { background: #dbeafe; color: #1e40af; }
+.badge-live { background: #fee2e2; color: #b91c1c; }
+.badge-done { background: #dcfce7; color: #15803d; }
+body.dark-mode .badge-upcoming { background: #1e3a5f; color: #93c5fd; }
+body.dark-mode .badge-live { background: #4c1d24; color: #fca5a5; }
+body.dark-mode .badge-done { background: #14332190; color: #86efac; }
+.badge-prono { background: var(--accent); color: #fff; }
+
+.empty-note { color: var(--text-muted); text-align: center; padding: 30px; font-style: italic; }
+
+/* ============================================================
+   LEADERBOARD
+   ============================================================ */
+.podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 14px; margin-bottom: 24px; padding: 10px; }
+.podium-column { text-align: center; width: 110px; }
+.podium-column .podium-avatar { font-size: 1.8rem; }
+.podium-name-plate { font-weight: 700; font-size: .82rem; display: block; margin: 4px 0; }
+.podium-points { font-weight: 800; color: var(--accent); font-size: .85rem; }
+.podium-crown { font-size: 1.2rem; }
+.podium-rank-number { margin-top: 8px; border-radius: 8px 8px 0 0; font-weight: 800; color: #fff; }
+.podium-column.first .podium-rank-number { background: var(--gold); height: 70px; line-height: 70px; }
+.podium-column.second .podium-rank-number { background: var(--silver); height: 50px; line-height: 50px; }
+.podium-column.third .podium-rank-number { background: var(--bronze); height: 34px; line-height: 34px; }
+
+table.leaderboard-table { width: 100%; border-collapse: collapse; }
+table.leaderboard-table th { text-align: left; font-size: .72rem; color: var(--text-muted); text-transform: uppercase; padding: 8px 10px; border-bottom: 2px solid var(--border); }
+table.leaderboard-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: .88rem; }
+tr.rank-row-gold { background: rgba(229,184,66,0.1); }
+tr.rank-row-silver { background: rgba(170,180,192,0.1); }
+tr.rank-row-bronze { background: rgba(205,127,50,0.1); }
+tr.is-me { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pseudo-link { cursor: pointer; font-weight: 700; }
+.pseudo-link:hover { color: var(--accent); }
+
+/* ============================================================
+   ACCOUNT PAGE
+   ============================================================ */
+.account-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 800px) { .account-grid { grid-template-columns: 1fr; } }
+.stat-box { display: flex; gap: 20px; margin-bottom: 14px; }
+.stat-box .stat { text-align: center; }
+.stat .stat-value { font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+.stat .stat-label { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: .78rem; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: var(--text-main); font-size: .88rem; }
+.btn { background: var(--primary); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: .85rem; }
+.btn.primary { background: var(--accent); }
+.btn.danger { background: #dc2626; }
+.btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+.desc { color: var(--text-muted); font-size: .85rem; }
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+.modal-box { background: var(--bg-card); border-radius: 16px; padding: 24px; width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-close { background: none; border: none; font-size: 1.3rem; color: var(--text-muted); }
+.score-input-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 18px 0; }
+.score-input-row input { width: 70px; text-align: center; font-size: 1.4rem; font-weight: 800; padding: 10px; border-radius: 10px; border: 2px solid var(--border); background: var(--bg-input); color: var(--text-main); }
+.score-input-row .vs-sep { font-weight: 800; color: var(--text-muted); }
+.team-vs-row { display: flex; justify-content: space-between; font-weight: 700; font-size: 1rem; }
+.locked-note { background: #fef3c7; color: #92400e; padding: 10px 14px; border-radius: 8px; font-size: .82rem; text-align: center; margin-top: 10px; }
+body.dark-mode .locked-note { background: #453a1a; color: #fde68a; }
+.prono-list-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+.result-exact { color: #15803d; font-weight: 800; }
+.result-diff { color: #ca8a04; font-weight: 800; }
+.result-partial { color: #2563eb; font-weight: 700; }
+.result-miss { color: var(--text-muted); }
+
+/* ============================================================
+   TOASTS
+   ============================================================ */
+#toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+.toast { padding: 12px 18px; border-radius: 10px; color: #fff; font-weight: 700; font-size: .85rem; box-shadow: var(--shadow); animation: slideIn .25s ease; }
+.toast.success { background: #16a34a; }
+.toast.error { background: #dc2626; }
+.toast.warning { background: #d97706; }
+.toast.info { background: var(--primary); }
+@keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+@media (max-width: 640px) {
+    .match-teams { font-size: .85rem; }
+    .phase-grid { grid-template-columns: 1fr; }
+    .header { padding: 14px 12px; }
+    .logo-area h1 { font-size: 1.15rem; }
+    .subtitle { font-size: .7rem; }
+    .btn-theme-toggle { padding: 5px 10px; font-size: .7rem; }
+    .auth-form { flex-direction: column; align-items: stretch; }
+    .auth-field, .avatar-select, .btn-auth { width: 100%; }
+    .logged-in-row { justify-content: space-between; width: 100%; }
+    .page-wrap { padding: 14px; }
+    .comp-header { flex-direction: column; align-items: flex-start; gap: 2px; }
+    .comp-header h2 { font-size: 1.1rem; }
+    .card { padding: 14px; }
+    .podium-container { gap: 6px; }
+    .podium-column { width: 88px; }
+    .podium-avatar { font-size: 1.4rem; }
+    .podium-name-plate { font-size: .72rem; }
+    .podium-points { font-size: .74rem; }
+    table.leaderboard-table th, table.leaderboard-table td { padding: 8px 6px; font-size: .78rem; white-space: nowrap; }
+    .modal-box { padding: 16px; border-radius: 12px; max-height: 92vh; }
+    .score-input-row input { width: 58px; font-size: 1.2rem; padding: 8px; }
+    .account-grid.card { padding: 14px; }
+    .stat-box { gap: 12px; }
+    .form-group input, .form-group select, .form-group textarea { font-size: 16px; }
+    .match-meta { flex-wrap: wrap; gap: 6px; }
+    .match-teams { flex-wrap: wrap; gap: 4px; }
+    .team-vs-row { font-size: .92rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== HEADER ==================== -->
+<header class="header">
+    <div class="header-inner">
+        <div class="logo-title-row">
+            <div class="logo-area">
+                <h1>Pronos <span class="accent">2026</span></h1>
+                <div class="subtitle">Ligue 1 · Ligue des Champions · Ligue des Nations</div>
+            </div>
+            <button class="btn-theme-toggle" id="theme-toggle" onclick="toggleTheme()">🌙 Mode Sombre</button>
+        </div>
+
+        <div class="auth-bar">
+            <div id="auth-logged-out" style="display:flex; flex-direction:column; gap:8px;">
+                <div class="auth-form">
+                    <input type="text" id="auth-pseudo" class="auth-field" placeholder="Pseudo">
+                    <input type="password" id="auth-code" class="auth-field" placeholder="Code secret">
+                    <select id="auth-avatar" class="avatar-select"></select>
+                    <button class="btn-auth" onclick="handleLogin()">Connexion</button>
+                    <button class="btn-auth" style="background:#1f2937;" onclick="handleSignup()">Créer un compte</button>
+                </div>
+            </div>
+            <div id="auth-logged-in" class="logged-in-row" style="display:none;">
+                <div class="user-pill"><span id="user-display-avatar"></span><span id="user-display-name"></span></div>
+                <button class="btn-logout" onclick="handleLogout()">Déconnexion</button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- ==================== NAV ==================== -->
+<nav class="nav-tabs" id="nav-tabs"></nav>
+
+<!-- ==================== PAGES ==================== -->
+<div class="page-wrap">
+
+    <div id="comp-sections"></div>
+
+    <section class="container" id="sec-LEADERBOARD">
+        <div class="comp-header"><h2>🏆 Classement Général</h2><span class="comp-sub">Tous matchs, toutes compétitions confondues</span></div>
+        <div class="card">
+            <div id="podium-slot"></div>
+            <div style="overflow-x:auto;">
+                <table class="leaderboard-table">
+                    <thead><tr><th>Rang</th><th>Joueur</th><th style="text-align:center;">Exacts</th><th style="text-align:center;">Écarts</th><th style="text-align:center;">Issues</th><th style="text-align:right;">Points</th></tr></thead>
+                    <tbody id="leaderboard-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="container" id="sec-account">
+        <div class="comp-header"><h2>👤 Mon Compte</h2></div>
+        <div id="account-logged-out-view" class="card" style="display:none;">
+            <p class="desc">Connectez-vous ou créez un compte pour accéder à votre espace personnel.</p>
+        </div>
+        <div id="account-logged-in-view" class="card account-grid" style="display:none;">
+            <div>
+                <h3 style="margin-bottom:10px;">Mes statistiques</h3>
+                <div class="stat-box">
+                    <div class="stat"><div class="stat-value" id="acc-stat-rank">--</div><div class="stat-label">Rang</div></div>
+                    <div class="stat"><div class="stat-value" id="acc-stat-pts">0 pts</div><div class="stat-label">Points</div></div>
+                </div>
+                <p class="desc" id="acc-stat-details" style="cursor:pointer; text-decoration:underline;">Détails</p>
+                <h3 style="margin:20px 0 10px;">Pronostics manquants (48h)</h3>
+                <div id="acc-missing-pronos"></div>
+            </div>
+            <div>
+                <h3 style="margin-bottom:10px;">Modifier mon profil</h3>
+                <div class="form-group"><label>Pseudo</label><input type="text" id="acc-input-pseudo"></div>
+                <div class="form-group"><label>Nouveau code secret (laisser vide pour ne pas changer)</label><input type="password" id="acc-input-code"></div>
+                <div class="form-group"><label>Avatar</label><select id="acc-select-avatar"></select></div>
+                <div class="form-group">
+                    <label>Description (<span id="acc-description-counter">0 / 100</span>)</label>
+                    <textarea id="acc-input-description" rows="3" maxlength="100" oninput="updateDescriptionCounter()"></textarea>
+                </div>
+                <button class="btn primary" onclick="saveAccountChanges()">Enregistrer</button>
+                <button class="btn danger" style="margin-left:8px;" onclick="openDeleteAccountModal()">Supprimer mon compte</button>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<!-- ==================== MODALES ==================== -->
+<div class="modal-overlay" id="match-modal">
+    <div class="modal-box">
+        <div class="modal-header"><h3>Pronostic</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+        <div class="team-vs-row" id="modal-teams"></div>
+        <div class="desc" id="modal-date" style="text-align:center; margin-top:6px;"></div>
+        <div id="modal-form-zone"></div>
+        <div id="modal-others-zone"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="profile-modal">
+    <div class="modal-box">
+        <div class="modal-header"><h3 id="profile-title">Profil</h3><button class="modal-close" onclick="closeProfileModal()">✕</button></div>
+        <div id="profile-body"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="delete-account-modal">
+    <div class="modal-box">
+        <div class="modal-header"><h3>Supprimer mon compte</h3><button class="modal-close" onclick="closeDeleteAccountModal()">✕</button></div>
+        <p class="desc">Cette action est définitive et supprimera tous vos pronostics. Entrez votre code secret pour confirmer.</p>
+        <div class="form-group" style="margin-top:12px;"><input type="password" id="delete-confirm-code" class="auth-field" style="width:100%; color:var(--text-main); background:var(--bg-input); border:1px solid var(--border);" placeholder="Code secret"></div>
+        <button class="btn danger" onclick="confirmDeleteAccount()">Confirmer la suppression</button>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+/* ============================================================
+   CONFIGURATION SUPABASE — nouveau projet dédié à cette version
+   Remplacer par les identifiants du nouveau projet Supabase créé
+   pour ce site (Project Settings > API).
+   ============================================================ */
+const SUPABASE_URL = "https://ozijmgfhhqkdgajijdpj.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_NdSPw6carmja35jlifSB9Q_2G3gabSt";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ============================================================
+   CONSTANTES
+   ============================================================ */
+const COMPETITIONS = [
+    { code: 'L1',  name: 'Ligue 1' },
+    { code: 'LDC', name: 'Ligue des Champions' },
+    { code: 'LDN', name: 'Ligue des Nations' }
+];
+
+const AVATAR_EMOJIS = [
+    "⚽","🏐","🏀","🏈","🥅","🏃‍♂️","🏃‍♀️","🤾","⛹️","🤸","🤺","🏋️","🚴‍♂️","🚴‍♀️","🏄‍♂️","🏄‍♀️","🏊‍♂️","🏊‍♀️","⛷️","🏇","🥊","🥋","🤽","🤼","🧗",
+    "🦁","🦅","🦊","🐺","🐉","🐯","🐼","🦄","🐻","🦍","🦓","🦒","🐸","🐙","🦈","🐢","🦉","🐲","🐗","🦂","🐊","🦘","🐿️","🦔","🐝",
+    "😎","🤠","🥸","🤯","🤨","😏","😜","🤙","🤘","😤","🤩","😈","🤓","😬","🤫","🥶","🥵","🤪","😇","🫡","🧐","🤤","🥳",
+    "⚡","🔥","💥","🌪️","✨","🌈","🌟","💫","🌋","🌌","⚔️","🛡️","🎯","💰","🏅","🎖️","📣","🎉","🎵","🎮","🧩","🧑‍💻","🚀","🛸",
+    "👑","🏆","💎","⭐","🥇","🥈","🥉","🎩","🦾","🤖","👽","🥷","🧞‍♂️","🦸‍♂️","🦸‍♀️","🦹‍♂️"
+];
+
+/* ============================================================
+   ÉTAT GLOBAL
+   ============================================================ */
+let allMatches = [];          // toutes les lignes de la table "matches"
+let myPronostics = {};        // { match_id: {predicted_score1, predicted_score2} }
+let globalRankList = [];      // classement calculé
+let currentActiveMatchId = null;
+
+/* ============================================================
+   UTILITAIRES
+   ============================================================ */
+async function hashString(str) {
+    if (!str) return '';
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function showToast(message, type = 'info', duration = 4500) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerText = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), duration);
+}
+function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+}
+
+/* ============================================================
+   THÈME (clair / sombre uniquement — pas d'accent coloré)
+   ============================================================ */
+function initTheme() {
+    const saved = localStorage.getItem('pr_theme');
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (saved === 'dark' || (!saved && systemDark)) {
+        document.body.classList.add('dark-mode');
+        document.getElementById('theme-toggle').innerText = "☀️ Mode Clair";
+    } else {
+        document.getElementById('theme-toggle').innerText = "🌙 Mode Sombre";
+    }
+}
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('pr_theme', isDark ? 'dark' : 'light');
+    document.getElementById('theme-toggle').innerText = isDark ? "☀️ Mode Clair" : "🌙 Mode Sombre";
+}
+
+function populateAvatars() {
+    const optionsHTML = AVATAR_EMOJIS.map(e => `<option value="${e}">${e}</option>`).join('');
+    document.getElementById('auth-avatar').innerHTML = optionsHTML;
+    document.getElementById('acc-select-avatar').innerHTML = optionsHTML;
+}
+
+/* ============================================================
+   SESSION (localStorage — auth "maison" via pseudo + code haché)
+   ============================================================ */
+function getSession() {
+    const pseudo = localStorage.getItem('pr_pseudo');
+    if (!pseudo) return null;
+    return { pseudo, codeHash: localStorage.getItem('pr_code_hash') || '', avatar: localStorage.getItem('pr_avatar') || '⚽' };
+}
+function setSession({ pseudo, codeHash, avatar }) {
+    localStorage.setItem('pr_pseudo', pseudo);
+    localStorage.setItem('pr_code_hash', codeHash);
+    localStorage.setItem('pr_avatar', avatar || '⚽');
+}
+function clearSession() {
+    localStorage.removeItem('pr_pseudo');
+    localStorage.removeItem('pr_code_hash');
+    localStorage.removeItem('pr_avatar');
+}
+function updateAuthUI() {
+    const session = getSession();
+    document.getElementById('auth-logged-out').style.display = session ? 'none' : 'flex';
+    document.getElementById('auth-logged-in').style.display = session ? 'flex' : 'none';
+    if (session) {
+        document.getElementById('user-display-name').innerText = session.pseudo;
+        document.getElementById('user-display-avatar').innerText = session.avatar;
+    }
+}
+
+/* ============================================================
+   AUTHENTIFICATION
+   ============================================================ */
+async function afterAuthSuccess(pseudo, codeHash, avatar, message) {
+    setSession({ pseudo, codeHash, avatar: avatar || '⚽' });
+    updateAuthUI();
+    await loadMyPronostics();
+    renderAllCompetitions();
+    await calculateLeaderboard();
+    showToast(message, "success");
+    if (document.getElementById('sec-account').classList.contains('active')) await updateAccountDashboard();
+}
+async function handleLogin() {
+    const pseudo = document.getElementById('auth-pseudo').value.trim();
+    const code = document.getElementById('auth-code').value.trim();
+    if (!pseudo || !code) { showToast("Merci de remplir le pseudo et le code secret.", "warning"); return; }
+    const codeHash = await hashString(code);
+    const { data, error } = await supabaseClient.rpc('login_player', { p_pseudo: pseudo, p_code_hash: codeHash });
+    if (error) { showToast("Erreur : " + error.message, "error"); return; }
+    if (!data || data.length === 0) { showToast("Pseudo introuvable ou code secret erroné.", "error"); return; }
+    await afterAuthSuccess(data[0].pseudo, codeHash, data[0].avatar, `Bon retour, ${data[0].pseudo} !`);
+}
+async function handleSignup() {
+    const pseudo = document.getElementById('auth-pseudo').value.trim();
+    const code = document.getElementById('auth-code').value.trim();
+    const avatar = document.getElementById('auth-avatar').value;
+    if (!pseudo || !code) { showToast("Merci de remplir le pseudo et le code secret.", "warning"); return; }
+    if (pseudo.length < 2 || pseudo.length > 24) { showToast("Le pseudo doit faire entre 2 et 24 caractères.", "warning"); return; }
+    if (code.length < 4) { showToast("Le code secret doit faire au moins 4 caractères.", "warning"); return; }
+    const codeHash = await hashString(code);
+    const { error } = await supabaseClient.rpc('signup_player', { p_pseudo: pseudo, p_code_hash: codeHash, p_avatar: avatar });
+    if (error) {
+        if (error.code === '23505' || /duplicate|existe|unique/i.test(error.message)) showToast("Ce pseudo est déjà pris.", "error");
+        else showToast("Erreur : " + error.message, "error");
+        return;
+    }
+    await afterAuthSuccess(pseudo, codeHash, avatar, `Bienvenue ${pseudo}, votre compte a été créé !`);
+}
+function handleLogout() {
+    clearSession();
+    updateAuthUI();
+    myPronostics = {};
+    renderAllCompetitions();
+    if (document.getElementById('sec-account').classList.contains('active')) updateAccountDashboard();
+}
+async function loadMyPronostics() {
+    const session = getSession();
+    myPronostics = {};
+    if (!session) return;
+    const { data } = await supabaseClient.from('pronostics').select('match_id, predicted_score1, predicted_score2').eq('pseudo', session.pseudo);
+    if (data) data.forEach(p => { myPronostics[p.match_id] = p; });
+}
+
+/* ============================================================
+   NAVIGATION / ONGLETS
+   ============================================================ */
+function buildNavTabs() {
+    const nav = document.getElementById('nav-tabs');
+    let html = '';
+    COMPETITIONS.forEach((c, i) => {
+        html += `<button class="tab${i === 0 ? ' active' : ''}" data-section-id="${c.code}" onclick="showSection('${c.code}', this)">${c.name}</button>`;
+    });
+    html += `<button class="tab" data-section-id="LEADERBOARD" onclick="showSection('LEADERBOARD', this)">🏆 Classement</button>`;
+    html += `<button class="tab" data-section-id="account" onclick="showSection('account', this); updateAccountDashboard();">👤 Mon Compte</button>`;
+    nav.innerHTML = html;
+
+    const compWrap = document.getElementById('comp-sections');
+    compWrap.innerHTML = COMPETITIONS.map((c, i) => `
+        <section class="container${i === 0 ? ' active' : ''}" id="sec-${c.code}">
+            <div class="comp-header"><h2>${c.name}</h2><span class="comp-sub" id="comp-sub-${c.code}"></span></div>
+            <div class="phase-grid" id="phases-${c.code}"></div>
+        </section>`).join('');
+}
+function showSection(id, el) {
+    document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(`sec-${id}`).classList.add('active');
+    el.classList.add('active');
+}
+
+/* ============================================================
+   CHARGEMENT DES MATCHS DEPUIS SUPABASE
+   ============================================================ */
+async function syncFromSupabase() {
+    try {
+        const { data, error } = await supabaseClient.from('matches').select('*').order('match_date', { ascending: true });
+        if (error) throw error;
+        allMatches = data || [];
+        await loadMyPronostics();
+        renderAllCompetitions();
+        await calculateLeaderboard();
+    } catch (e) {
+        console.error(e);
+        showToast("Impossible de charger les matchs : " + e.message, "error");
+    }
+}
+
+function getMatchStatus(m) {
+    const hasScore = m.score1 !== null && m.score1 !== undefined && m.score2 !== null && m.score2 !== undefined;
+    if (hasScore) return 'done';
+    const kickoff = new Date(m.match_date);
+    if (new Date() >= kickoff) return 'live';
+    return 'upcoming';
+}
+function renderStatusBadge(status) {
+    if (status === 'done') return `<span class="badge badge-done">Terminé</span>`;
+    if (status === 'live') return `<span class="badge badge-live">En cours / à venir</span>`;
+    return `<span class="badge badge-upcoming">À venir</span>`;
+}
+
+function renderAllCompetitions() {
+    COMPETITIONS.forEach(c => renderCompetition(c.code));
+}
+
+function renderCompetition(code) {
+    const container = document.getElementById(`phases-${code}`);
+    const subEl = document.getElementById(`comp-sub-${code}`);
+    if (!container) return;
+    const matches = allMatches.filter(m => m.competition === code);
+    if (subEl) subEl.innerText = `${matches.length} match${matches.length > 1 ? 's' : ''}`;
+    if (matches.length === 0) { container.innerHTML = `<p class="empty-note">Aucun match programmé pour le moment.</p>`; return; }
+
+    // Regroupement par "phase" en conservant l'ordre d'apparition (order_index puis date)
+    const sorted = [...matches].sort((a, b) => (a.order_index - b.order_index) || (new Date(a.match_date) - new Date(b.match_date)));
+    const phases = [];
+    const phaseIndex = {};
+    sorted.forEach(m => {
+        const key = m.phase || 'Matchs';
+        if (!(key in phaseIndex)) { phaseIndex[key] = phases.length; phases.push({ label: key, matches: [] }); }
+        phases[phaseIndex[key]].matches.push(m);
+    });
+
+    container.innerHTML = phases.map(phase => `
+        <div class="card">
+            <div class="phase-title">${escapeHTML(phase.label)}</div>
+            ${phase.matches.map(m => renderMatchRowHTML(m)).join('')}
+        </div>`).join('');
+}
+
+function renderMatchRowHTML(m) {
+    const status = getMatchStatus(m);
+    const scoreText = status === 'done' ? `${m.score1} : ${m.score2}` : '— : —';
+    const myProno = myPronostics[m.id];
+    const pronoBadge = myProno ? `<span class="badge badge-prono">Mon prono : ${myProno.predicted_score1}-${myProno.predicted_score2}</span>` : '';
+    return `
+        <div class="match-row" onclick="openMatchModal('${m.id}')">
+            <div class="match-teams">
+                <span>${escapeHTML(m.team1)}</span>
+                <span class="match-score-view">${scoreText}</span>
+                <span>${escapeHTML(m.team2)}</span>
+            </div>
+            <div class="match-meta">
+                <span>${formatDate(m.match_date)}</span>
+                <div class="match-meta-right">${renderStatusBadge(status)}${pronoBadge}</div>
+            </div>
+        </div>`;
+}
+
+/* ============================================================
+   MODALE DE PRONOSTIC
+   ============================================================ */
+async function openMatchModal(matchId) {
+    const m = allMatches.find(x => x.id === matchId);
+    if (!m) return;
+    currentActiveMatchId = matchId;
+    document.getElementById('modal-teams').innerHTML = `<span>${escapeHTML(m.team1)}</span><span>${escapeHTML(m.team2)}</span>`;
+    document.getElementById('modal-date').innerText = formatDate(m.match_date);
+
+    const status = getMatchStatus(m);
+    const session = getSession();
+    const myProno = myPronostics[m.id];
+    const formZone = document.getElementById('modal-form-zone');
+
+    if (status === 'done') {
+        formZone.innerHTML = `<div class="score-input-row"><strong style="font-size:1.6rem;">${m.score1} : ${m.score2}</strong></div>
+            ${myProno ? `<p class="desc" style="text-align:center;">Votre pronostic était : ${myProno.predicted_score1} - ${myProno.predicted_score2}</p>` : `<p class="desc" style="text-align:center;">Vous n'avez pas pronostiqué ce match.</p>`}`;
+    } else if (status === 'live') {
+        formZone.innerHTML = `<div class="locked-note">🔒 Ce match a débuté : les pronostics sont verrouillés.</div>
+            ${myProno ? `<p class="desc" style="text-align:center; margin-top:8px;">Votre pronostic : ${myProno.predicted_score1} - ${myProno.predicted_score2}</p>` : ''}`;
+    } else if (!session) {
+        formZone.innerHTML = `<div class="locked-note">Connectez-vous pour parier sur ce match.</div>`;
+    } else {
+        formZone.innerHTML = `
+            <div class="score-input-row">
+                <input type="number" min="0" id="prono-s1" value="${myProno ? myProno.predicted_score1 : ''}">
+                <span class="vs-sep">–</span>
+                <input type="number" min="0" id="prono-s2" value="${myProno ? myProno.predicted_score2 : ''}">
+            </div>
+            <button class="btn primary" style="width:100%;" onclick="saveUserPronostic()">Sauvegarder mon pronostic</button>`;
+    }
+
+    // Liste des autres pronostics : uniquement visible une fois le match commencé
+    const othersZone = document.getElementById('modal-others-zone');
+    if (status === 'upcoming') { othersZone.innerHTML = ''; }
+    else {
+        const { data } = await supabaseClient.from('pronostics').select('pseudo, predicted_score1, predicted_score2').eq('match_id', matchId);
+        if (data && data.length > 0) {
+            othersZone.innerHTML = `<h3 style="margin:16px 0 8px; font-size:.9rem;">Pronostics des joueurs</h3>` +
+                data.map(p => `<div class="prono-list-item"><span>${escapeHTML(p.pseudo)}</span><strong>${p.predicted_score1} - ${p.predicted_score2}</strong></div>`).join('');
+        } else { othersZone.innerHTML = ''; }
+    }
+
+    document.getElementById('match-modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('match-modal').style.display = 'none'; }
+
+async function saveUserPronostic() {
+    const session = getSession();
+    if (!session) return;
+    const s1 = document.getElementById('prono-s1').value.trim();
+    const s2 = document.getElementById('prono-s2').value.trim();
+    if (s1 === '' || s2 === '') { showToast("Merci d'indiquer un score pour les deux équipes.", "warning"); return; }
+
+    const m = allMatches.find(x => x.id === currentActiveMatchId);
+    if (m && new Date() >= new Date(m.match_date)) { showToast("Ce match est verrouillé : il a débuté.", "warning"); return; }
+
+    const { error } = await supabaseClient.rpc('submit_pronostic', {
+        p_pseudo: session.pseudo, p_code_hash: session.codeHash,
+        p_match_id: currentActiveMatchId, p_s1: parseInt(s1), p_s2: parseInt(s2)
+    });
+
+    if (error) {
+        if (/débuté|verrouillé/i.test(error.message)) showToast("Trop tard : ce match a déjà débuté.", "warning");
+        else if (/Authentification invalide/i.test(error.message)) { showToast("Session expirée, reconnectez-vous.", "warning"); handleLogout(); }
+        else showToast("Erreur d'envoi : " + error.message, "error");
+    } else {
+        showToast("Pronostic sauvegardé !", "success");
+        closeModal();
+        await loadMyPronostics();
+        renderAllCompetitions();
+        await calculateLeaderboard();
+    }
+}
+
+/* ============================================================
+   CLASSEMENT GLOBAL (tous matchs, toutes compétitions)
+   ============================================================ */
+async function calculateLeaderboard() {
+    const tbody = document.getElementById('leaderboard-tbody');
+    if (!tbody) return;
+    const { data: users, error: uErr } = await supabaseClient.from('public_users').select('pseudo, avatar');
+    const { data: pronos, error: pErr } = await supabaseClient.from('pronostics').select('*');
+    if (uErr || pErr) { console.error(uErr || pErr); return; }
+
+    const scoresByMatch = {};
+    allMatches.forEach(m => { if (m.score1 !== null && m.score2 !== null) scoresByMatch[m.id] = { s1: m.score1, s2: m.score2 }; });
+
+    const userScores = {};
+    users.forEach(u => { userScores[u.pseudo] = { pseudo: u.pseudo, avatar: u.avatar || '⚽', exacts: 0, diffs: 0, partials: 0, totalPoints: 0, totalPronos: 0 }; });
+
+    pronos.forEach(p => {
+        if (!userScores[p.pseudo]) return;
+        userScores[p.pseudo].totalPronos++;
+        const real = scoresByMatch[p.match_id];
+        if (!real) return;
+        const actualSign = Math.sign(real.s1 - real.s2);
+        const predSign = Math.sign(p.predicted_score1 - p.predicted_score2);
+        if (real.s1 === p.predicted_score1 && real.s2 === p.predicted_score2) {
+            userScores[p.pseudo].exacts++; userScores[p.pseudo].totalPoints += 5;
+        } else if (actualSign === predSign) {
+            const actualDiff = real.s1 - real.s2, predDiff = p.predicted_score1 - p.predicted_score2;
+            if (actualDiff === predDiff) { userScores[p.pseudo].diffs++; userScores[p.pseudo].totalPoints += 3; }
+            else { userScores[p.pseudo].partials++; userScores[p.pseudo].totalPoints += 2; }
+        }
+    });
+
+    let rankList = Object.values(userScores).sort((a, b) => b.totalPoints - a.totalPoints || b.exacts - a.exacts || b.diffs - a.diffs || b.partials - a.partials);
+    let currentRank = 1;
+    rankList.forEach((player, index) => {
+        if (index > 0) {
+            const prev = rankList[index - 1];
+            const isTie = player.totalPoints === prev.totalPoints && player.exacts === prev.exacts && player.diffs === prev.diffs && player.partials === prev.partials;
+            if (!isTie) currentRank = index + 1;
+        }
+        player.rank = currentRank;
+    });
+    globalRankList = rankList;
+
+    // Podium
+    const podiumSlot = document.getElementById('podium-slot');
+    if (rankList.length > 0) {
+        const top3 = rankList.slice(0, 3);
+        const visualMapping = [1, 0, 2];
+        let podiumHTML = '<div class="podium-container">';
+        visualMapping.forEach(idx => {
+            const p = top3[idx];
+            if (p) {
+                const styleClass = idx === 0 ? 'first' : idx === 1 ? 'second' : 'third';
+                const crown = idx === 0 ? '<div class="podium-crown">👑</div>' : '';
+                podiumHTML += `<div class="podium-column ${styleClass}">${crown}
+                    <div class="podium-avatar">${p.avatar}</div>
+                    <div class="podium-name-plate">${escapeHTML(p.pseudo)}</div>
+                    <div class="podium-points">${p.totalPoints} pts</div>
+                    <div class="podium-rank-number">${idx + 1}</div></div>`;
+            }
+        });
+        podiumHTML += '</div>';
+        podiumSlot.innerHTML = podiumHTML;
+    } else { podiumSlot.innerHTML = ''; }
+
+    const counts = {};
+    rankList.forEach(p => { counts[p.rank] = (counts[p.rank] || 0) + 1; });
+    const session = getSession();
+    tbody.innerHTML = rankList.map(player => {
+        const isTie = counts[player.rank] > 1;
+        const stringRank = isTie ? `#${player.rank} <span style="font-size:.65rem; opacity:.6;">(ex.)</span>` : `#${player.rank}`;
+        const rankClass = player.rank === 1 ? 'rank-row-gold' : player.rank === 2 ? 'rank-row-silver' : player.rank === 3 ? 'rank-row-bronze' : '';
+        const isMeClass = (session && session.pseudo === player.pseudo) ? ' is-me' : '';
+        return `<tr class="${rankClass}${isMeClass}">
+            <td><strong>${stringRank}</strong></td>
+            <td><span>${player.avatar}</span> <span class="pseudo-link" onclick="openProfileModal('${escapeHTML(player.pseudo)}')">${escapeHTML(player.pseudo)}</span></td>
+            <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.exacts}</td>
+            <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.diffs}</td>
+            <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.partials}</td>
+            <td style="text-align:right; color:var(--accent);"><strong>${player.totalPoints} pts</strong></td>
+        </tr>`;
+    }).join('');
+
+    if (document.getElementById('sec-account').classList.contains('active')) updateAccountDashboard();
+}
+
+/* ============================================================
+   PROFIL D'UN JOUEUR (description + historique des pronostics)
+   ============================================================ */
+async function openProfileModal(pseudo) {
+    document.getElementById('profile-title').innerText = pseudo;
+    const body = document.getElementById('profile-body');
+    body.innerHTML = `<p class="desc">Chargement...</p>`;
+    document.getElementById('profile-modal').style.display = 'flex';
+
+    const { data: dbUser } = await supabaseClient.from('public_users').select('description, avatar').eq('pseudo', pseudo).maybeSingle();
+    const player = globalRankList.find(p => p.pseudo === pseudo);
+    const { data: pronos } = await supabaseClient.from('pronostics').select('*').eq('pseudo', pseudo);
+
+    let statsHTML = player ? `
+        <div class="stat-box">
+            <div class="stat"><div class="stat-value">#${player.rank}</div><div class="stat-label">Rang</div></div>
+            <div class="stat"><div class="stat-value">${player.totalPoints}</div><div class="stat-label">Points</div></div>
+            <div class="stat"><div class="stat-value">${player.exacts}</div><div class="stat-label">Exacts</div></div>
+        </div>` : '';
+
+    let listHTML = '';
+    if (pronos && pronos.length > 0) {
+        const sorted = [...pronos].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        listHTML = sorted.map(p => {
+            const m = allMatches.find(x => x.id === p.match_id);
+            if (!m) return '';
+            const label = `${m.team1} - ${m.team2}`;
+            let resultClass = '', resultLabel = 'En attente';
+            if (m.score1 !== null && m.score2 !== null) {
+                const actualSign = Math.sign(m.score1 - m.score2), predSign = Math.sign(p.predicted_score1 - p.predicted_score2);
+                if (m.score1 === p.predicted_score1 && m.score2 === p.predicted_score2) { resultClass = 'result-exact'; resultLabel = 'Score exact (+5)'; }
+                else if (actualSign === predSign) {
+                    const diffOK = (m.score1 - m.score2) === (p.predicted_score1 - p.predicted_score2);
+                    resultClass = diffOK ? 'result-diff' : 'result-partial';
+                    resultLabel = diffOK ? 'Bon écart (+3)' : 'Bonne issue (+2)';
+                } else { resultClass = 'result-miss'; resultLabel = 'Manqué'; }
+            }
+            return `<div class="prono-list-item"><span>${escapeHTML(label)}<br><small class="desc">${escapeHTML(m.phase || '')}</small></span>
+                <span style="text-align:right;"><strong>${p.predicted_score1}-${p.predicted_score2}</strong><br><small class="${resultClass}">${resultLabel}</small></span></div>`;
+        }).join('');
+    } else { listHTML = `<p class="desc">Aucun pronostic pour le moment.</p>`; }
+
+    body.innerHTML = `
+        ${dbUser && dbUser.description ? `<p class="desc" style="margin-bottom:12px;">"${escapeHTML(dbUser.description)}"</p>` : ''}
+        ${statsHTML}
+        <h3 style="margin:16px 0 8px; font-size:.9rem;">Historique des pronostics</h3>
+        ${listHTML}`;
+}
+function closeProfileModal() { document.getElementById('profile-modal').style.display = 'none'; }
+
+/* ============================================================
+   PAGE COMPTE
+   ============================================================ */
+async function updateAccountDashboard() {
+    const session = getSession();
+    const loggedOutView = document.getElementById('account-logged-out-view');
+    const loggedInView = document.getElementById('account-logged-in-view');
+    if (!session) { loggedOutView.style.display = 'block'; loggedInView.style.display = 'none'; return; }
+
+    const { data: dbUser, error } = await supabaseClient.from('public_users').select('pseudo, avatar, description').eq('pseudo', session.pseudo).maybeSingle();
+    if (error) { showToast("Impossible de charger votre compte.", "error"); return; }
+    if (!dbUser) { clearSession(); updateAuthUI(); loggedOutView.style.display = 'block'; loggedInView.style.display = 'none'; return; }
+
+    loggedOutView.style.display = 'none';
+    loggedInView.style.display = 'block';
+
+    const myStats = globalRankList.find(p => p.pseudo === session.pseudo);
+    const detailsEl = document.getElementById('acc-stat-details');
+    if (myStats) {
+        document.getElementById('acc-stat-rank').innerText = `#${myStats.rank}`;
+        document.getElementById('acc-stat-pts').innerText = `${myStats.totalPoints} pts`;
+        detailsEl.innerText = `${myStats.exacts} exacts | ${myStats.diffs} écarts | ${myStats.partials} issues (clic pour l'historique)`;
+        detailsEl.onclick = () => openProfileModal(session.pseudo);
+    } else {
+        document.getElementById('acc-stat-rank').innerText = `--`;
+        document.getElementById('acc-stat-pts').innerText = `0 pts`;
+        detailsEl.innerText = `Aucun pronostic calculé`;
+        detailsEl.onclick = null;
+    }
+
+    const now = new Date();
+    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const { data: myPronos } = await supabaseClient.from('pronostics').select('match_id').eq('pseudo', session.pseudo);
+    const predicted = new Set(myPronos ? myPronos.map(p => p.match_id) : []);
+
+    let missingHTML = '';
+    allMatches.forEach(m => {
+        const d = new Date(m.match_date);
+        if (d > now && d <= in48h && !predicted.has(m.id)) {
+            missingHTML += `<div class="prono-list-item" style="cursor:pointer;" onclick="showSection('${m.competition}', document.querySelector('[data-section-id=\\'${m.competition}\\']')); openMatchModal('${m.id}')">
+                <span><strong>${formatDate(m.match_date)}</strong><br><small>${escapeHTML(m.team1)} 🆚 ${escapeHTML(m.team2)}</small></span>
+                <button class="btn primary" style="padding:6px 12px; font-size:.75rem;">Parier</button>
+            </div>`;
+        }
+    });
+    document.getElementById('acc-missing-pronos').innerHTML = missingHTML || `<p class="desc">🎉 Aucun pronostic manquant pour les prochaines 48h.</p>`;
+
+    document.getElementById('acc-input-pseudo').value = dbUser.pseudo;
+    document.getElementById('acc-input-code').value = '';
+    document.getElementById('acc-select-avatar').value = dbUser.avatar || '⚽';
+    document.getElementById('acc-input-description').value = dbUser.description || '';
+    updateDescriptionCounter();
+}
+function updateDescriptionCounter() {
+    const input = document.getElementById('acc-input-description');
+    document.getElementById('acc-description-counter').innerText = `${input.value.length} / 100`;
+}
+async function saveAccountChanges() {
+    const session = getSession();
+    if (!session) return;
+    const newPseudo = document.getElementById('acc-input-pseudo').value.trim();
+    const newCodeRaw = document.getElementById('acc-input-code').value.trim();
+    const newAvatar = document.getElementById('acc-select-avatar').value;
+    const newDescription = document.getElementById('acc-input-description').value.trim().slice(0, 100);
+    if (!newPseudo || newPseudo.length < 2 || newPseudo.length > 24) { showToast("Le pseudo doit faire entre 2 et 24 caractères.", "warning"); return; }
+    if (newCodeRaw && newCodeRaw.length < 4) { showToast("Le nouveau code secret doit faire au moins 4 caractères.", "warning"); return; }
+
+    const newCodeHash = newCodeRaw ? await hashString(newCodeRaw) : session.codeHash;
+    const { error } = await supabaseClient.rpc('update_account', {
+        p_old_pseudo: session.pseudo, p_old_code_hash: session.codeHash,
+        p_new_pseudo: newPseudo, p_new_code_hash: newCodeHash,
+        p_new_avatar: newAvatar, p_new_description: newDescription
+    });
+    if (error) {
+        if (error.code === '23505' || /duplicate|existe|unique/i.test(error.message)) showToast("Ce pseudo est déjà pris.", "error");
+        else showToast("Erreur : " + error.message, "error");
+        return;
+    }
+    setSession({ pseudo: newPseudo, codeHash: newCodeHash, avatar: newAvatar });
+    updateAuthUI();
+    showToast("Profil mis à jour !", "success");
+    await loadMyPronostics();
+    renderAllCompetitions();
+    await calculateLeaderboard();
+}
+function openDeleteAccountModal() { document.getElementById('delete-account-modal').style.display = 'flex'; }
+function closeDeleteAccountModal() { document.getElementById('delete-account-modal').style.display = 'none'; document.getElementById('delete-confirm-code').value = ''; }
+async function confirmDeleteAccount() {
+    const session = getSession();
+    if (!session) return;
+    const code = document.getElementById('delete-confirm-code').value.trim();
+    if (!code) { showToast("Merci d'entrer votre code secret.", "warning"); return; }
+    const codeHash = await hashString(code);
+    if (codeHash !== session.codeHash) { showToast("Code secret incorrect.", "error"); return; }
+    const { error } = await supabaseClient.rpc('delete_account', { p_pseudo: session.pseudo, p_code_hash: codeHash });
+    if (error) { showToast("Erreur : " + error.message, "error"); return; }
+    closeDeleteAccountModal();
+    handleLogout();
+    showToast("Votre compte a été supprimé.", "success");
+}
+
+/* ============================================================
+   INITIALISATION
+   ============================================================ */
+async function init() {
+    initTheme();
+    populateAvatars();
+    buildNavTabs();
+    updateAuthUI();
+    await syncFromSupabase();
+}
+window.onload = init;
+</script>
+</body>
+</html>
