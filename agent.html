@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pronos 2026 — Agent Access</title>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#172033;background:#f6f8fb}pre{white-space:pre-wrap;background:#111827;color:#e5e7eb;padding:18px;border-radius:10px;overflow:auto}.card{background:#fff;border:1px solid #dce2ea;border-radius:12px;padding:20px;margin-bottom:18px}</style>
+</head>
+<body>
+<h1>🤖 Pronos 2026 — Agent Access</h1>
+<div class="card"><p>Interface machine-friendly destinée aux agents navigateur.</p><p>Fonctions : <code>AgentPronos.listMatches()</code>, <code>login()</code>, <code>submitPronostic()</code> et <code>getPronostics()</code>.</p></div>
+<div class="card"><h2>Résultat</h2><pre id="output">Prêt.</pre></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://ozijmgfhhqkdgajijdpj.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_NdSPw6carmja35jlifSB9Q_2G3gabSt";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+async function hashString(str){const data=new TextEncoder().encode(str);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+function output(value){document.getElementById('output').textContent=JSON.stringify(value,null,2);return value;}
+const AgentPronos={
+async listMatches(){const{data,error}=await db.from('matches').select('*').order('match_date',{ascending:true});if(error)throw new Error(error.message);return output({ok:true,matches:data});},
+async login(pseudo,code){if(!pseudo||!code)throw new Error('pseudo et code requis');const codeHash=await hashString(code);const{data,error}=await db.rpc('login_player',{p_pseudo:pseudo,p_code_hash:codeHash});if(error)throw new Error(error.message);if(!data||!data.length)throw new Error('Pseudo introuvable ou code secret erroné');return output({ok:true,user:{pseudo:data[0].pseudo,avatar:data[0].avatar||'⚽'}});},
+async submitPronostic(pseudo,code,matchId,score1,score2){score1=Number(score1);score2=Number(score2);if(!pseudo||!code||!matchId||!Number.isInteger(score1)||!Number.isInteger(score2)||score1<0||score2<0)throw new Error('Paramètres invalides');const{data:match,error:me}=await db.from('matches').select('id,team1,team2,match_date').eq('id',matchId).maybeSingle();if(me)throw new Error(me.message);if(!match)throw new Error('Match introuvable');if(new Date()>=new Date(match.match_date))throw new Error('Match verrouillé');const codeHash=await hashString(code);const{error}=await db.rpc('submit_pronostic',{p_pseudo:pseudo,p_code_hash:codeHash,p_match_id:matchId,p_s1:score1,p_s2:score2});if(error)throw new Error(error.message);return output({ok:true,message:'Pronostic sauvegardé',match,prediction:{score1,score2}});},
+async getPronostics(pseudo,code){if(!pseudo||!code)throw new Error('pseudo et code requis');const codeHash=await hashString(code);const{data:user,error:le}=await db.rpc('login_player',{p_pseudo:pseudo,p_code_hash:codeHash});if(le)throw new Error(le.message);if(!user||!user.length)throw new Error('Authentification invalide');const{data,error}=await db.from('pronostics').select('*').eq('pseudo',pseudo).order('created_at',{ascending:false});if(error)throw new Error(error.message);return output({ok:true,pseudo,pronostics:data||[]});}};
+window.AgentPronos=AgentPronos;
+(async()=>{const q=new URLSearchParams(location.search),action=q.get('action');try{if(action==='matches')await AgentPronos.listMatches();else if(action==='login')await AgentPronos.login(q.get('pseudo'),q.get('code'));else if(action==='prono')await AgentPronos.submitPronostic(q.get('pseudo'),q.get('code'),q.get('match_id'),q.get('s1'),q.get('s2'));else if(action==='pronostics')await AgentPronos.getPronostics(q.get('pseudo'),q.get('code'));}catch(e){output({ok:false,error:e.message});}})();
+</script>
+</body>
+</html>
