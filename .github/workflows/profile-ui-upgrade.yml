@@ -1,0 +1,177 @@
+name: Apply profile UI upgrade
+
+on:
+  push:
+    paths:
+      - '.github/workflows/profile-ui-upgrade.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          css_anchor = '/* ============================================================\n   MODALS\n   ============================================================ */'
+          css = r'''/* ============================================================
+   PLAYER PROFILE — social card + prediction history
+   ============================================================ */
+.profile-social-card { position: relative; overflow: hidden; padding: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
+.profile-cover { height: 92px; background: linear-gradient(120deg, #0f2557 0%, #6c1947 55%, #ff0055 100%); }
+body.dark-mode .profile-cover { background: linear-gradient(120deg, #07152f, #241533 65%, #4b102b); }
+.profile-identity { text-align: center; padding: 0 20px 18px; margin-top: -42px; }
+.profile-avatar-xl { width: 84px; height: 84px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-card); border: 4px solid var(--bg-card); box-shadow: 0 8px 24px rgba(15,37,87,.18); font-size: 2.8rem; }
+.profile-username-xl { font-size: 1.28rem; font-weight: 800; line-height: 1.2; word-break: break-word; }
+.profile-rank-line { margin-top: 7px; color: var(--text-muted); font-size: .78rem; font-weight: 700; }
+.profile-bio-box { margin: 13px auto 0; max-width: 390px; padding: 11px 15px; border-radius: 12px; background: var(--bg-match); border: 1px solid var(--border); color: var(--text-main); font-size: .84rem; line-height: 1.45; font-style: italic; }
+.profile-bio-box.empty { color: var(--text-muted); opacity: .75; }
+.profile-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; padding: 0 14px 14px; }
+.profile-stat-card { text-align: center; padding: 10px 5px; border: 1px solid var(--border); border-radius: 11px; background: var(--bg-match); }
+.profile-stat-value { display:block; font-size: 1rem; font-weight: 800; color: var(--accent); }
+.profile-stat-label { display:block; margin-top: 3px; font-size: .58rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+.profile-form-strip { margin: 0 14px 14px; padding: 10px 13px; border-radius: 11px; background: linear-gradient(90deg, rgba(255,0,85,.09), transparent); border: 1px solid rgba(255,0,85,.16); display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.profile-form-title { font-size:.7rem; color:var(--text-muted); text-transform:uppercase; font-weight:800; }
+.profile-form-dots { display:flex; gap:4px; }
+.profile-form-dot { width:10px; height:10px; border-radius:50%; background:var(--border); }
+.profile-form-dot.exact { background:#16a34a; }
+.profile-form-dot.good { background:#2563eb; }
+.profile-form-dot.partial { background:#ca8a04; }
+.profile-history-section { padding: 15px 14px 14px; border-top: 1px solid var(--border); }
+.profile-history-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.profile-history-title { font-size:.92rem; font-weight:800; }
+.profile-history-count { color:var(--text-muted); font-size:.7rem; font-weight:700; }
+.profile-history-list { display:flex; flex-direction:column; gap:8px; max-height:48vh; overflow:auto; padding-right:2px; }
+.profile-prediction-card { padding:11px 12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-match); }
+.profile-prediction-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+.profile-prediction-match { font-weight:800; font-size:.79rem; line-height:1.35; }
+.profile-prediction-phase { display:block; margin-top:3px; font-size:.62rem; color:var(--text-muted); font-weight:600; }
+.profile-prediction-score { flex:0 0 auto; padding:4px 8px; border-radius:8px; background:var(--bg-card); border:1px solid var(--border); font-size:.82rem; font-weight:800; }
+.profile-prediction-bottom { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; padding-top:7px; border-top:1px solid var(--border); font-size:.67rem; }
+.profile-prediction-result { font-weight:800; }
+.profile-prediction-real { color:var(--text-muted); }
+.profile-history-button { width:100%; display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:10px 13px; border-radius:10px; border:1px solid var(--border); background:var(--bg-match); color:var(--text-main); font-size:.76rem; font-weight:800; cursor:pointer; }
+.profile-history-button:hover { border-color:var(--accent); color:var(--accent); }
+.profile-history-collapsed { display:none; }
+@media (max-width:640px) {
+  .profile-stat-grid { grid-template-columns:repeat(2,1fr); }
+  .profile-avatar-xl { width:78px; height:78px; font-size:2.5rem; }
+  .profile-cover { height:82px; }
+}
+
+'''
+          if 'PLAYER PROFILE — social card + prediction history' not in s:
+              s = s.replace(css_anchor, css + css_anchor, 1)
+
+          old_start = 'async function openProfileModal(pseudo) {'
+          old_end = 'function closeProfileModal() { document.getElementById(\'profile-modal\').style.display = \'none\'; }'
+          a = s.find(old_start)
+          b = s.find(old_end)
+          if a == -1 or b == -1:
+              raise SystemExit('Profile function anchors not found')
+          b += len(old_end)
+
+          new_fn = r'''async function openProfileModal(pseudo) {
+    const body = document.getElementById('profile-body');
+    document.getElementById('profile-title').innerText = pseudo;
+    body.innerHTML = '<p class="desc">Chargement du profil...</p>';
+    document.getElementById('profile-modal').style.display = 'flex';
+
+    const { data: dbUser } = await supabaseClient.from('public_users').select('pseudo, description, avatar').eq('pseudo', pseudo).maybeSingle();
+    const player = globalRankList.find(p => p.pseudo === pseudo);
+    const { data: pronos } = await supabaseClient.from('pronostics').select('*').eq('pseudo', pseudo);
+    const playerAvatar = (dbUser && dbUser.avatar) || (player && player.avatar) || '⚽';
+    const description = dbUser && dbUser.description ? dbUser.description.trim() : '';
+    const stats = player || { rank: '—', totalPoints: 0, exacts: 0, diffs: 0, partials: 0, totalPronos: (pronos || []).length };
+    const accuracy = stats.totalPronos ? Math.round(((stats.exacts + stats.diffs + stats.partials) / stats.totalPronos) * 100) : 0;
+
+    const sorted = [...(pronos || [])].sort((a,b) => {
+        const ma = allMatches.find(x => x.id === a.match_id), mb = allMatches.find(x => x.id === b.match_id);
+        return new Date((mb && mb.match_date) || mb?.created_at || b.created_at || 0) - new Date((ma && ma.match_date) || ma?.created_at || a.created_at || 0);
+    });
+    const recent = sorted.slice(0, 5);
+    const formDots = recent.map(p => {
+        const m = allMatches.find(x => x.id === p.match_id);
+        if (!m || m.score1 === null || m.score2 === null) return '<span class="profile-form-dot"></span>';
+        const exact = m.score1 === p.predicted_score1 && m.score2 === p.predicted_score2;
+        if (exact) return '<span class="profile-form-dot exact"></span>';
+        const actual = Math.sign(m.score1 - m.score2), pred = Math.sign(p.predicted_score1 - p.predicted_score2);
+        if (actual !== pred) return '<span class="profile-form-dot"></span>';
+        return `<span class="profile-form-dot ${((m.score1-m.score2)===(p.predicted_score1-p.predicted_score2)) ? 'good' : 'partial'}"></span>`;
+    }).join('');
+
+    const history = sorted.map(p => {
+        const m = allMatches.find(x => x.id === p.match_id);
+        if (!m) return '';
+        let cls = '', label = '⏳ En attente', real = 'Résultat à venir';
+        if (m.score1 !== null && m.score2 !== null) {
+            real = `Résultat : ${m.score1}-${m.score2}`;
+            const exact = m.score1 === p.predicted_score1 && m.score2 === p.predicted_score2;
+            if (exact) { cls='result-exact'; label='🎯 Score exact · +5'; }
+            else {
+                const sameIssue = Math.sign(m.score1-m.score2) === Math.sign(p.predicted_score1-p.predicted_score2);
+                if (sameIssue) {
+                    const sameDiff = (m.score1-m.score2) === (p.predicted_score1-p.predicted_score2);
+                    cls = sameDiff ? 'result-diff' : 'result-partial';
+                    label = sameDiff ? '📐 Bon écart · +3' : '✅ Bonne issue · +2';
+                } else { cls='result-miss'; label='❌ Manqué · 0'; }
+            }
+        }
+        return `<article class="profile-prediction-card">
+          <div class="profile-prediction-top"><div class="profile-prediction-match">${escapeHTML(m.team1)} <span class="desc">vs</span> ${escapeHTML(m.team2)}<small class="profile-prediction-phase">${escapeHTML(m.phase || '')}</small></div><span class="profile-prediction-score">${p.predicted_score1} - ${p.predicted_score2}</span></div>
+          <div class="profile-prediction-bottom"><span class="profile-prediction-result ${cls}">${label}</span><span class="profile-prediction-real">${real}</span></div>
+        </article>`;
+    }).join('');
+
+    body.innerHTML = `<div class="profile-social-card">
+      <div class="profile-cover"></div>
+      <div class="profile-identity">
+        <div class="profile-avatar-xl">${escapeHTML(playerAvatar)}</div>
+        <div class="profile-username-xl">${escapeHTML(pseudo)}</div>
+        <div class="profile-rank-line">🏆 #${stats.rank} · ${stats.totalPoints} points</div>
+        <div class="profile-bio-box ${description ? '' : 'empty'}">${description ? `“${escapeHTML(description)}”` : 'Ce joueur n’a pas encore ajouté de description.'}</div>
+      </div>
+      <div class="profile-stat-grid">
+        <div class="profile-stat-card"><span class="profile-stat-value">${stats.totalPronos}</span><span class="profile-stat-label">Pronos</span></div>
+        <div class="profile-stat-card"><span class="profile-stat-value">${accuracy}%</span><span class="profile-stat-label">Réussite</span></div>
+        <div class="profile-stat-card"><span class="profile-stat-value">${stats.exacts}</span><span class="profile-stat-label">Exacts</span></div>
+        <div class="profile-stat-card"><span class="profile-stat-value">${stats.diffs + stats.partials}</span><span class="profile-stat-label">Issues</span></div>
+      </div>
+      <div class="profile-form-strip"><div><div class="profile-form-title">🔥 Forme récente</div><small class="desc">5 derniers pronostics</small></div><div class="profile-form-dots">${formDots || '<span class="desc">Aucune donnée</span>'}</div></div>
+      <div class="profile-history-section">
+        <div class="profile-history-heading"><span class="profile-history-title">📜 Historique</span><span class="profile-history-count">${sorted.length} pronostic${sorted.length > 1 ? 's' : ''}</span></div>
+        <button type="button" class="profile-history-button" onclick="toggleProfileHistory(this)">Voir tout l’historique <span>⌄</span></button>
+        <div class="profile-history-list profile-history-collapsed" id="profile-history-list">${history || '<p class="desc">Aucun pronostic pour le moment.</p>'}</div>
+      </div>
+    </div>`;
+}
+function toggleProfileHistory(btn) {
+    const list = document.getElementById('profile-history-list');
+    if (!list) return;
+    const hidden = list.classList.toggle('profile-history-collapsed');
+    btn.innerHTML = hidden ? 'Voir tout l’historique <span>⌄</span>' : 'Réduire l’historique <span>⌃</span>';
+}
+function closeProfileModal() { document.getElementById('profile-modal').style.display = 'none'; }'''
+          s = s[:a] + new_fn + s[b:]
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit upgraded UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: redesign player profiles and prediction history"
+          git push
