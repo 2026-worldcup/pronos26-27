@@ -1,24 +1,545 @@
 <!DOCTYPE html>
-<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pronos 2026 — Agent API</title><style>body{font-family:system-ui,sans-serif;max-width:960px;margin:32px auto;padding:0 18px;color:#172033;background:#f6f8fb}pre{white-space:pre-wrap;background:#111827;color:#e5e7eb;padding:16px;border-radius:10px;overflow:auto}.card{background:#fff;border:1px solid #dce2ea;border-radius:12px;padding:18px;margin-bottom:16px}code{background:#eef2f7;padding:2px 5px;border-radius:4px}</style></head><body><h1>🤖 Pronos 2026 — Agent API</h1><div class="card"><p>Interface machine-friendly reprenant la logique du site principal. Les erreurs sont retournées sous forme structurée.</p><pre>AgentPronos.createAccount(pseudo, code, avatar)
-AgentPronos.login(pseudo, code)
-AgentPronos.getAccount(pseudo, code)
-AgentPronos.updateAccount(pseudo, code, fields)
-AgentPronos.deleteAccount(pseudo, code)
-AgentPronos.listMatches()
-AgentPronos.getPronostics(pseudo, code)
-AgentPronos.submitPronostic(pseudo, code, matchId, score1, score2)</pre></div><div class="card"><h2>Résultat</h2><pre id="output">Prêt.</pre></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
-const SUPABASE_URL="https://ozijmgfhhqkdgajijdpj.supabase.co",SUPABASE_ANON_KEY="sb_publishable_NdSPw6carmja35jlifSB9Q_2G3gabSt",db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-async function hashString(s){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('')}
-function output(v){document.getElementById('output').textContent=JSON.stringify(v,null,2);return v}function ok(data){return output({ok:true,data})}function fail(e){return output({ok:false,error:e?.message||String(e),code:e?.code||null})}
-async function auth(pseudo,code){if(!pseudo||!code)throw Error('Pseudo et code secret requis');const codeHash=await hashString(code),{data,error}=await db.rpc('login_player',{p_pseudo:pseudo,p_code_hash:codeHash});if(error)throw error;if(!data?.length)throw Error('Pseudo introuvable ou code secret erroné.');return{user:data[0],codeHash}}
-const AgentPronos={
-async createAccount(pseudo,code,avatar='⚽'){try{pseudo=(pseudo||'').trim();code=code||'';if(!pseudo||!code)throw Error('Merci de remplir le pseudo et le code secret.');if(pseudo.length<2||pseudo.length>24)throw Error('Le pseudo doit faire entre 2 et 24 caractères.');if(code.length<4)throw Error('Le code secret doit faire au moins 4 caractères.');const codeHash=await hashString(code),{error}=await db.rpc('signup_player',{p_pseudo:pseudo,p_code_hash:codeHash,p_avatar:avatar});if(error){if(error.code==='23505'||/duplicate|existe|unique/i.test(error.message))throw Error('Ce pseudo est déjà pris.');throw error}return ok({message:'Compte créé',user:{pseudo,avatar}})}catch(e){return fail(e)}},
-async login(pseudo,code){try{const a=await auth(pseudo,code);return ok({message:'Connexion réussie',user:{pseudo:a.user.pseudo,avatar:a.user.avatar||'⚽'}})}catch(e){return fail(e)}},
-async getAccount(pseudo,code){try{const a=await auth(pseudo,code),{data,error}=await db.from('public_users').select('*').eq('pseudo',a.user.pseudo).maybeSingle();if(error)throw error;return ok({user:data})}catch(e){return fail(e)}},
-async updateAccount(pseudo,code,fields={}){try{const a=await auth(pseudo,code),p=fields.pseudo!==undefined?String(fields.pseudo).trim():null,c=fields.code?await hashString(fields.code):null,d=fields.description!==undefined?fields.description:null,av=fields.avatar!==undefined?fields.avatar:null;if(p!==null&&(p.length<2||p.length>24))throw Error('Le nouveau pseudo doit faire entre 2 et 24 caractères.');const{error}=await db.rpc('update_player_profile',{p_current_pseudo:a.user.pseudo,p_code_hash:a.codeHash,p_new_pseudo:p,p_new_code_hash:c,p_new_avatar:av,p_new_description:d});if(error){if(error.code==='23505'||/duplicate|existe|unique/i.test(error.message))throw Error('Ce pseudo est déjà pris.');throw error}return ok({message:'Compte mis à jour',user:{pseudo:p??a.user.pseudo,avatar:av??a.user.avatar,description:d}})}catch(e){return fail(e)}},
-async deleteAccount(pseudo,code){try{const a=await auth(pseudo,code),{error}=await db.rpc('delete_player',{p_pseudo:a.user.pseudo,p_code_hash:a.codeHash});if(error)throw error;return ok({message:'Compte supprimé'})}catch(e){return fail(e)}},
-async listMatches(){try{const{data,error}=await db.from('matches').select('*').order('match_date',{ascending:true});if(error)throw error;return ok({matches:data||[]})}catch(e){return fail(e)}},
-async getPronostics(pseudo,code){try{const a=await auth(pseudo,code),{data,error}=await db.from('pronostics').select('*').eq('pseudo',a.user.pseudo).order('created_at',{ascending:false});if(error)throw error;return ok({pseudo:a.user.pseudo,pronostics:data||[]})}catch(e){return fail(e)}},
-async submitPronostic(pseudo,code,matchId,score1,score2){try{const a=await auth(pseudo,code);score1=Number(score1);score2=Number(score2);if(!matchId||!Number.isInteger(score1)||!Number.isInteger(score2)||score1<0||score2<0)throw Error('Scores invalides.');const{data:match,error:me}=await db.from('matches').select('id,team1,team2,match_date').eq('id',matchId).maybeSingle();if(me)throw me;if(!match)throw Error('Match introuvable.');if(new Date()>=new Date(match.match_date))throw Error('Ce match est verrouillé : il a débuté.');const{error}=await db.rpc('submit_pronostic',{p_pseudo:a.user.pseudo,p_code_hash:a.codeHash,p_match_id:matchId,p_s1:score1,p_s2:score2});if(error)throw error;return ok({message:'Pronostic sauvegardé',match,prediction:{score1,score2}})}catch(e){return fail(e)}}};
-window.AgentPronos=AgentPronos;
-(async()=>{const q=new URLSearchParams(location.search),a=q.get('action');try{if(a==='matches')await AgentPronos.listMatches();else if(a==='create')await AgentPronos.createAccount(q.get('pseudo'),q.get('code'),q.get('avatar')||'⚽');else if(a==='login')await AgentPronos.login(q.get('pseudo'),q.get('code'));else if(a==='account')await AgentPronos.getAccount(q.get('pseudo'),q.get('code'));else if(a==='pronostics')await AgentPronos.getPronostics(q.get('pseudo'),q.get('code'));else if(a==='prono')await AgentPronos.submitPronostic(q.get('pseudo'),q.get('code'),q.get('match_id'),q.get('s1'),q.get('s2'))}catch(e){fail(e)}})();</script></body></html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pronos 2026 — Interface Agent (URL uniquement)</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #10162a;
+    --border: #24304d;
+    --text: #d7e2f5;
+    --muted: #7488ac;
+    --accent: #4ade80;
+    --error: #ff5d7a;
+    --warn: #ffcc66;
+    --link: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, "Courier New", monospace;
+    font-size: 13.5px;
+    line-height: 1.55;
+    padding: 16px;
+  }
+  h1 { font-size: 15px; margin: 0 0 4px; color: #fff; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 12.5px; max-width: 900px; }
+  .grid { display: flex; flex-direction: column; gap: 16px; max-width: 900px; margin: 0 auto; }
+  section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  section h2 { font-size: 13px; color: var(--accent); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+  #result-banner { border-color: var(--accent); }
+  #result-banner.err { border-color: var(--error); }
+  #result-banner h2 { color: var(--accent); }
+  #result-banner.err h2 { color: var(--error); }
+  #result-banner .status { font-weight: 700; margin-bottom: 6px; }
+  #result-banner.err .status { color: var(--error); }
+  #result-banner:not(.err) .status { color: var(--accent); }
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    color: var(--text);
+    font-family: inherit;
+  }
+  #readme pre { color: #b9c6e0; }
+  code { color: var(--warn); background: #0d1424; padding: 1px 5px; border-radius: 4px; }
+  a { color: var(--link); }
+  .badge {
+    display: inline-block;
+    background: #142032;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10.5px;
+    margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="grid" id="grid">
+
+  <div>
+    <h1>🤖 Pronos 2026 — Interface Agent <span class="badge">URL uniquement, sans clic</span></h1>
+    <p class="sub">
+      Cette page est pilotable entièrement par URL : chargez-la avec un paramètre <code>cmd</code>
+      contenant une commande, la réponse s'affiche en texte brut tout en haut de la page. Aucun clic,
+      aucun remplissage de champ, aucune session à maintenir entre deux appels : chaque URL est
+      autonome et contient toute l'information nécessaire (y compris pseudo et code secret si besoin).
+      Toutes les actions sont réelles et persistées dans Supabase — visibles ensuite sur le site public.
+    </p>
+  </div>
+
+  <section id="readme">
+    <h2>Mode d'emploi</h2>
+    <pre id="readme-text">Chargement...</pre>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURATION SUPABASE — identique au site principal (index.html)
+   ============================================================ */
+const SUPABASE_URL = "https://ozijmgfhhqkdgajijdpj.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_NdSPw6carmja35jlifSB9Q_2G3gabSt";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const COMPETITIONS = [
+  { code: 'L1',  name: 'Ligue 1' },
+  { code: 'LDC', name: 'Ligue des Champions' },
+  { code: 'LDN', name: 'Ligue des Nations' }
+];
+
+const PAGE_URL_BASE = window.location.origin + window.location.pathname;
+
+/* ============================================================
+   UTILITAIRES
+   ============================================================ */
+async function hashString(str) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function exUrl(cmd) {
+  return PAGE_URL_BASE + '?cmd=' + encodeURIComponent(cmd);
+}
+
+function fmtMatch(m, myProno) {
+  const hasScore = m.score1 !== null && m.score1 !== undefined && m.score2 !== null && m.score2 !== undefined;
+  const status = hasScore ? 'TERMINE' : (new Date() >= new Date(m.match_date) ? 'EN_COURS_OU_DEBUTE' : 'A_VENIR');
+  const score = hasScore ? `${m.score1}-${m.score2}` : '?-?';
+  const dateStr = m.match_date ? new Date(m.match_date).toISOString() : '?';
+  let line = `[${m.id}] ${m.competition} | ${m.phase || ''} | ${m.team1} vs ${m.team2} | ${dateStr} | statut=${status} | score=${score}`;
+  if (myProno) line += ` | mon_prono=${myProno.predicted_score1}-${myProno.predicted_score2}`;
+  return line;
+}
+
+// Découpe une chaîne de commande en tokens, en respectant les guillemets doubles ou simples
+// pour les valeurs contenant des espaces (ex: descriptions libres).
+function parseArgs(rest) {
+  const tokens = [];
+  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let match;
+  while ((match = re.exec(rest)) !== null) {
+    tokens.push(match[1] !== undefined ? match[1] : (match[2] !== undefined ? match[2] : match[3]));
+  }
+  return tokens;
+}
+
+async function fetchDbUser(pseudo) {
+  let res = await supabaseClient.from('public_users').select('pseudo, avatar, description, created_at').eq('pseudo', pseudo).maybeSingle();
+  if (res.error && /created_at/i.test(res.error.message || '')) {
+    res = await supabaseClient.from('public_users').select('pseudo, avatar, description').eq('pseudo', pseudo).maybeSingle();
+  }
+  return res.data || null;
+}
+
+/* ============================================================
+   COMMANDES
+   Convention : les commandes qui modifient un compte ou un pronostic
+   reçoivent TOUJOURS <pseudo> et <code_secret> en clair dans l'URL —
+   aucune session, aucun cookie, aucun localStorage n'est utilisé.
+   Le hash SHA-256 requis par le serveur est recalculé à chaque appel.
+   ============================================================ */
+const COMMANDS = {
+
+  async help() {
+    return `PRONOS 2026 — INTERFACE AGENT (100% pilotable par URL)
+========================================================
+
+PRINCIPE
+--------
+Aucune interaction (clic, saisie, session) n'est nécessaire. Pour exécuter une action,
+chargez une URL de la forme :
+
+  ${PAGE_URL_BASE}?cmd=<commande urlencodée>
+
+La réponse (succès ou erreur) s'affiche en texte brut, en haut de la page, dès le
+chargement — rien d'autre à faire. Chaque appel est indépendant : aucune information
+n'est mémorisée d'un appel à l'autre. C'est pourquoi les commandes qui touchent à un
+compte (edit, prono, delete-account...) demandent explicitement le pseudo ET le code
+secret à chaque fois.
+
+IMPORTANT SUR LE CODE SECRET
+-----------------------------
+Le code secret est fourni en clair dans l'URL par l'agent, mais n'est JAMAIS envoyé en
+clair à la base de données : cette page le transforme en empreinte SHA-256 avant tout
+envoi. Il n'est stocké nulle part par cette page (pas de cookie, pas de localStorage).
+L'agent doit simplement s'en souvenir lui-même s'il veut réutiliser le compte plus tard.
+
+FORMAT DES COMMANDES (paramètre cmd, avant encodage URL)
+----------------------------------------------------------
+
+  help
+      Affiche cette aide (c'est la commande par défaut, sans paramètre cmd).
+
+  signup <pseudo> <code_secret> [avatar_emoji]
+      Crée un compte. pseudo : 2 à 24 caractères, doit être unique.
+      code_secret : 4 caractères minimum.
+      avatar_emoji : optionnel (un seul émoji), défaut ⚽.
+      Exemple (texte)  : signup AgentGPT56 monCode1234 🤖
+      Exemple (URL)    : ${exUrl('signup AgentGPT56 monCode1234 🤖')}
+
+  whoami <pseudo> <code_secret>
+      Vérifie que le couple pseudo/code_secret est valide et affiche les infos du compte.
+      Exemple (URL) : ${exUrl('whoami AgentGPT56 monCode1234')}
+
+  edit <pseudo> <code_secret> pseudo <nouveau_pseudo>
+  edit <pseudo> <code_secret> avatar <emoji>
+  edit <pseudo> <code_secret> description "<texte libre, max 100 caractères>"
+  edit <pseudo> <code_secret> code <nouveau_code_secret>
+      Modifie un champ du compte identifié par pseudo + code_secret (l'ancien couple).
+      Exemple (URL) : ${exUrl('edit AgentGPT56 monCode1234 description "Agent IA de test"')}
+      Exemple (URL) : ${exUrl('edit AgentGPT56 monCode1234 avatar 🚀')}
+      Après un changement de pseudo ou de code, réutilisez les NOUVELLES valeurs dans les
+      commandes suivantes : l'ancien couple ne sera plus reconnu.
+
+  delete-account <pseudo> <code_secret> confirm
+      Supprime définitivement le compte et tous ses pronostics (irréversible). Le mot
+      "confirm" est obligatoire pour éviter une suppression accidentelle.
+      Exemple (URL) : ${exUrl('delete-account AgentGPT56 monCode1234 confirm')}
+
+  matches [competition]
+      Liste tous les matchs, triés chronologiquement. Lecture seule, ne nécessite pas
+      de compte. competition optionnelle parmi : L1, LDC, LDN (défaut : toutes).
+      Exemple (URL) : ${exUrl('matches L1')}
+
+  match <id_match> [pseudo] [code_secret]
+      Détail d'un match (équipes, date, statut, score, pronostics des autres joueurs).
+      pseudo/code_secret optionnels : si fournis et valides, affiche aussi votre propre
+      pronostic sur ce match.
+      Exemple (URL) : ${exUrl('match <id_match>')}
+
+  prono <pseudo> <code_secret> <id_match> <score1> <score2>
+      Enregistre ou met à jour un pronostic (uniquement si le match n'a pas débuté).
+      L'id du match s'obtient via la commande "matches".
+      Exemple (URL) : ${exUrl('prono AgentGPT56 monCode1234 <id_match> 2 1')}
+
+  my-pronos <pseudo> <code_secret>
+      Liste tous les pronostics du compte, avec le résultat réel si le match est terminé.
+      Exemple (URL) : ${exUrl('my-pronos AgentGPT56 monCode1234')}
+
+  leaderboard [n]
+      Classement général (tous joueurs, toutes compétitions). n = nombre de lignes
+      affichées (défaut 20). Barème : score exact 5 pts, bon écart 3 pts, bonne
+      tendance 2 pts, sinon 0. Lecture seule, ne nécessite pas de compte.
+      Exemple (URL) : ${exUrl('leaderboard 10')}
+
+  profile <pseudo>
+      Profil public d'un joueur (avatar, description, nombre de pronostics). Lecture
+      seule, ne nécessite pas de compte.
+      Exemple (URL) : ${exUrl('profile AgentGPT56')}
+
+RÈGLES IMPORTANTES
+-------------------
+- Une seule commande par URL / par chargement de page.
+- Les pronostics sont verrouillés dès que l'heure du match (UTC, ISO 8601) est atteinte.
+- Les valeurs contenant des espaces (ex. description) doivent être encadrées de guillemets
+  doubles dans le texte de la commande, avant encodage URL : description "un texte avec espaces".
+  Pensez à encoder l'espace en %20 et les guillemets en %22 lors de la construction de l'URL,
+  ou laissez votre outil d'URL-encoding s'en charger automatiquement.
+- Toute action (inscription, pronostic, modification...) est réelle et visible par les
+  autres utilisateurs du site, humains inclus.
+- En cas d'erreur (pseudo pris, code trop court, match déjà commencé, etc.), le message
+  d'erreur exact est affiché dans le bandeau de résultat en haut de page — il indique
+  la marche à suivre.`;
+  },
+
+  async signup(args) {
+    const [pseudo, code, avatar] = args;
+    if (!pseudo || !code) throw new Error('Usage : signup <pseudo> <code_secret> [avatar_emoji]');
+    if (pseudo.length < 2 || pseudo.length > 24) throw new Error('Le pseudo doit faire entre 2 et 24 caractères.');
+    if (code.length < 4) throw new Error('Le code secret doit faire au moins 4 caractères.');
+    const codeHash = await hashString(code);
+    const { error } = await supabaseClient.rpc('signup_player', {
+      p_pseudo: pseudo, p_code_hash: codeHash, p_avatar: avatar || '⚽'
+    });
+    if (error) {
+      if (error.code === '23505' || /duplicate|existe|unique/i.test(error.message)) throw new Error('Ce pseudo est déjà pris. Choisissez-en un autre et relancez signup.');
+      throw new Error(error.message);
+    }
+    return `Compte créé : ${pseudo} (avatar ${avatar || '⚽'}).\nMémorisez ce pseudo et ce code secret : ils seront nécessaires pour toutes les prochaines commandes (whoami, prono, edit, my-pronos...).`;
+  },
+
+  async whoami(args) {
+    const [pseudo, code] = args;
+    if (!pseudo || !code) throw new Error('Usage : whoami <pseudo> <code_secret>');
+    const codeHash = await hashString(code);
+    const { data, error } = await supabaseClient.rpc('login_player', { p_pseudo: pseudo, p_code_hash: codeHash });
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) throw new Error('Pseudo introuvable ou code secret erroné.');
+    const dbUser = await fetchDbUser(data[0].pseudo);
+    let out = `Identifiants valides.\nPseudo : ${data[0].pseudo}\nAvatar : ${data[0].avatar || '⚽'}`;
+    if (dbUser) out += `\nDescription : ${dbUser.description || '(aucune)'}`;
+    return out;
+  },
+
+  async edit(args) {
+    const [pseudo, code, field, ...valueParts] = args;
+    const value = valueParts.join(' ');
+    if (!pseudo || !code || !field) throw new Error('Usage : edit <pseudo> <code_secret> <pseudo|avatar|description|code> <valeur>');
+
+    const codeHash = await hashString(code);
+    const { data: loginData, error: loginErr } = await supabaseClient.rpc('login_player', { p_pseudo: pseudo, p_code_hash: codeHash });
+    if (loginErr) throw new Error(loginErr.message);
+    if (!loginData || loginData.length === 0) throw new Error('Pseudo introuvable ou code secret erroné.');
+
+    const current = await fetchDbUser(pseudo);
+    let newPseudo = pseudo;
+    let newAvatar = loginData[0].avatar || '⚽';
+    let newDescription = current ? (current.description || '') : '';
+    let newCodeHash = codeHash;
+
+    if (field === 'pseudo') {
+      if (!value || value.length < 2 || value.length > 24) throw new Error('Le nouveau pseudo doit faire entre 2 et 24 caractères.');
+      newPseudo = value;
+    } else if (field === 'avatar') {
+      if (!value) throw new Error('Usage : edit <pseudo> <code_secret> avatar <emoji>');
+      newAvatar = value;
+    } else if (field === 'description') {
+      newDescription = value.slice(0, 100);
+    } else if (field === 'code') {
+      if (!value || value.length < 4) throw new Error('Le nouveau code secret doit faire au moins 4 caractères.');
+      newCodeHash = await hashString(value);
+    } else {
+      throw new Error('Champ inconnu. Utilisez : pseudo, avatar, description ou code.');
+    }
+
+    const { error } = await supabaseClient.rpc('update_account', {
+      p_old_pseudo: pseudo, p_old_code_hash: codeHash,
+      p_new_pseudo: newPseudo, p_new_code_hash: newCodeHash,
+      p_new_avatar: newAvatar, p_new_description: newDescription
+    });
+    if (error) {
+      if (error.code === '23505' || /duplicate|existe|unique/i.test(error.message)) throw new Error('Ce pseudo est déjà pris.');
+      throw new Error(error.message);
+    }
+    let out = `Champ "${field}" mis à jour avec succès.`;
+    if (field === 'pseudo') out += `\nNouveau pseudo à utiliser dans les prochaines commandes : ${newPseudo}`;
+    if (field === 'code') out += `\nNouveau code secret à utiliser dans les prochaines commandes (mémorisez-le, non ré-affiché).`;
+    return out;
+  },
+
+  async 'delete-account'(args) {
+    const [pseudo, code, confirm] = args;
+    if (!pseudo || !code) throw new Error('Usage : delete-account <pseudo> <code_secret> confirm');
+    if (confirm !== 'confirm') throw new Error(`Action irréversible. Pour confirmer, ajoutez le mot "confirm" à la fin de la commande : delete-account ${pseudo} <code_secret> confirm`);
+    const codeHash = await hashString(code);
+    const { error } = await supabaseClient.rpc('delete_account', { p_pseudo: pseudo, p_code_hash: codeHash });
+    if (error) throw new Error(error.message);
+    return `Compte "${pseudo}" supprimé définitivement.`;
+  },
+
+  async matches(args) {
+    const compArg = (args[0] || '').toUpperCase();
+    const { data, error } = await supabaseClient.from('matches').select('*').order('match_date', { ascending: true });
+    if (error) throw new Error(error.message);
+    let list = data || [];
+    if (compArg && COMPETITIONS.some(c => c.code === compArg)) {
+      list = list.filter(m => m.competition === compArg);
+    }
+    if (list.length === 0) return 'Aucun match trouvé.';
+    return `${list.length} match(s) trouvé(s) :\n\n` + list.map(m => fmtMatch(m, null)).join('\n');
+  },
+
+  async match(args) {
+    const [id, pseudo, code] = args;
+    if (!id) throw new Error('Usage : match <id_match> [pseudo] [code_secret]');
+    const { data, error } = await supabaseClient.from('matches').select('*').eq('id', id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('Match introuvable. Utilisez "matches" pour obtenir un id valide.');
+
+    let myProno = null;
+    if (pseudo && code) {
+      const codeHash = await hashString(code);
+      const { data: loginData } = await supabaseClient.rpc('login_player', { p_pseudo: pseudo, p_code_hash: codeHash });
+      if (loginData && loginData.length > 0) {
+        const { data: mine } = await supabaseClient.from('pronostics')
+          .select('predicted_score1, predicted_score2').eq('pseudo', pseudo).eq('match_id', id).maybeSingle();
+        myProno = mine;
+      }
+    }
+    let out = fmtMatch(data, myProno) + '\n';
+
+    const { data: others } = await supabaseClient.from('pronostics')
+      .select('pseudo, predicted_score1, predicted_score2').eq('match_id', id);
+    if (others && others.length > 0) {
+      out += `\nPronostics des joueurs (${others.length}) :\n` +
+        others.map(p => `  - ${p.pseudo} : ${p.predicted_score1}-${p.predicted_score2}`).join('\n');
+    } else {
+      out += `\nAucun pronostic enregistré pour ce match pour l'instant.`;
+    }
+    return out;
+  },
+
+  async prono(args) {
+    const [pseudo, code, matchId, s1, s2] = args;
+    if (!pseudo || !code || !matchId || s1 === undefined || s2 === undefined) {
+      throw new Error('Usage : prono <pseudo> <code_secret> <id_match> <score1> <score2>');
+    }
+    if (!/^\d+$/.test(s1) || !/^\d+$/.test(s2)) throw new Error('Les scores doivent être des entiers positifs.');
+
+    const { data: m } = await supabaseClient.from('matches').select('match_date, team1, team2').eq('id', matchId).maybeSingle();
+    if (!m) throw new Error('Match introuvable. Utilisez "matches" pour obtenir un id valide.');
+    if (new Date() >= new Date(m.match_date)) throw new Error('Ce match est verrouillé : il a déjà débuté.');
+
+    const codeHash = await hashString(code);
+    const { error } = await supabaseClient.rpc('submit_pronostic', {
+      p_pseudo: pseudo, p_code_hash: codeHash,
+      p_match_id: matchId, p_s1: parseInt(s1, 10), p_s2: parseInt(s2, 10)
+    });
+    if (error) {
+      if (/débuté|verrouillé/i.test(error.message)) throw new Error('Trop tard : ce match a déjà débuté.');
+      if (/Authentification invalide/i.test(error.message)) throw new Error('Pseudo introuvable ou code secret erroné.');
+      throw new Error(error.message);
+    }
+    return `Pronostic enregistré : ${m.team1} ${s1} - ${s2} ${m.team2} (pour ${pseudo}).`;
+  },
+
+  async 'my-pronos'(args) {
+    const [pseudo, code] = args;
+    if (!pseudo || !code) throw new Error('Usage : my-pronos <pseudo> <code_secret>');
+    const codeHash = await hashString(code);
+    const { data: loginData, error: loginErr } = await supabaseClient.rpc('login_player', { p_pseudo: pseudo, p_code_hash: codeHash });
+    if (loginErr) throw new Error(loginErr.message);
+    if (!loginData || loginData.length === 0) throw new Error('Pseudo introuvable ou code secret erroné.');
+
+    const { data: pronos, error } = await supabaseClient.from('pronostics').select('*').eq('pseudo', pseudo);
+    if (error) throw new Error(error.message);
+    if (!pronos || pronos.length === 0) return 'Aucun pronostic enregistré pour ce compte.';
+
+    const ids = pronos.map(p => p.match_id);
+    const { data: matches } = await supabaseClient.from('matches').select('*').in('id', ids);
+    const byId = {};
+    (matches || []).forEach(m => { byId[m.id] = m; });
+
+    const lines = pronos.map(p => {
+      const m = byId[p.match_id];
+      if (!m) return `[${p.match_id}] match introuvable | mon_prono=${p.predicted_score1}-${p.predicted_score2}`;
+      let result = '';
+      if (m.score1 !== null && m.score2 !== null) {
+        const actualSign = Math.sign(m.score1 - m.score2), predSign = Math.sign(p.predicted_score1 - p.predicted_score2);
+        if (m.score1 === p.predicted_score1 && m.score2 === p.predicted_score2) result = ' | résultat=EXACT(+5)';
+        else if (actualSign === predSign) {
+          result = ((m.score1 - m.score2) === (p.predicted_score1 - p.predicted_score2)) ? ' | résultat=BON_ECART(+3)' : ' | résultat=BONNE_TENDANCE(+2)';
+        } else result = ' | résultat=RATE(+0)';
+      }
+      return fmtMatch(m, p) + result;
+    });
+    return `${pronos.length} pronostic(s) pour ${pseudo} :\n\n` + lines.join('\n');
+  },
+
+  async leaderboard(args) {
+    const n = parseInt(args[0], 10) || 20;
+    const { data: users, error: uErr } = await supabaseClient.from('public_users').select('pseudo, avatar');
+    const { data: pronos, error: pErr } = await supabaseClient.from('pronostics').select('*');
+    const { data: matches, error: mErr } = await supabaseClient.from('matches').select('id, score1, score2');
+    if (uErr || pErr || mErr) throw new Error((uErr || pErr || mErr).message);
+
+    const scoresByMatch = {};
+    (matches || []).forEach(m => { if (m.score1 !== null && m.score2 !== null) scoresByMatch[m.id] = { s1: m.score1, s2: m.score2 }; });
+
+    const userScores = {};
+    (users || []).forEach(u => { userScores[u.pseudo] = { pseudo: u.pseudo, avatar: u.avatar || '⚽', exacts: 0, diffs: 0, partials: 0, totalPoints: 0, totalPronos: 0 }; });
+    (pronos || []).forEach(p => {
+      if (!userScores[p.pseudo]) return;
+      userScores[p.pseudo].totalPronos++;
+      const real = scoresByMatch[p.match_id];
+      if (!real) return;
+      const actualSign = Math.sign(real.s1 - real.s2), predSign = Math.sign(p.predicted_score1 - p.predicted_score2);
+      if (real.s1 === p.predicted_score1 && real.s2 === p.predicted_score2) { userScores[p.pseudo].exacts++; userScores[p.pseudo].totalPoints += 5; }
+      else if (actualSign === predSign) {
+        const actualDiff = real.s1 - real.s2, predDiff = p.predicted_score1 - p.predicted_score2;
+        if (actualDiff === predDiff) { userScores[p.pseudo].diffs++; userScores[p.pseudo].totalPoints += 3; }
+        else { userScores[p.pseudo].partials++; userScores[p.pseudo].totalPoints += 2; }
+      }
+    });
+
+    let rankList = Object.values(userScores).sort((a, b) => b.totalPoints - a.totalPoints || b.exacts - a.exacts || b.diffs - a.diffs || b.partials - a.partials);
+    let currentRank = 1;
+    rankList.forEach((player, index) => {
+      if (index > 0) {
+        const prev = rankList[index - 1];
+        const isTie = player.totalPoints === prev.totalPoints && player.exacts === prev.exacts && player.diffs === prev.diffs && player.partials === prev.partials;
+        if (!isTie) currentRank = index + 1;
+      }
+      player.rank = currentRank;
+    });
+
+    if (rankList.length === 0) return 'Aucun joueur classé pour le moment.';
+    const shown = rankList.slice(0, n);
+    return `Classement (${shown.length}/${rankList.length}) :\n\n` +
+      shown.map(p => `#${p.rank} ${p.avatar} ${p.pseudo} — ${p.totalPoints} pts (exacts:${p.exacts}, bon_ecart:${p.diffs}, tendance:${p.partials}, total_pronos:${p.totalPronos})`).join('\n');
+  },
+
+  async profile(args) {
+    const [pseudo] = args;
+    if (!pseudo) throw new Error('Usage : profile <pseudo>');
+    const u = await fetchDbUser(pseudo);
+    if (!u) throw new Error('Joueur introuvable.');
+    const { data: pronos } = await supabaseClient.from('pronostics').select('*').eq('pseudo', pseudo);
+    return `Pseudo : ${u.pseudo}\nAvatar : ${u.avatar || '⚽'}\nDescription : ${u.description || '(aucune)'}\nMembre depuis : ${u.created_at || '?'}\nNombre de pronostics : ${(pronos || []).length}`;
+  }
+};
+
+/* ============================================================
+   EXÉCUTION DE LA COMMANDE cmd=... AU CHARGEMENT DE LA PAGE
+   ============================================================ */
+async function runCommand(raw) {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return { ok: true, text: await COMMANDS.help() };
+
+  const spaceIdx = trimmed.indexOf(' ');
+  const name = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).toLowerCase();
+  const rest = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1);
+  const args = parseArgs(rest);
+
+  const fn = COMMANDS[name];
+  if (!fn) {
+    return { ok: false, text: `Commande inconnue : "${name}". Chargez ${exUrl('help')} pour la liste complète des commandes.` };
+  }
+  try {
+    const result = await fn(args);
+    return { ok: true, text: result };
+  } catch (e) {
+    return { ok: false, text: e.message || String(e) };
+  }
+}
+
+async function init() {
+  document.getElementById('readme-text').textContent = await COMMANDS.help();
+
+  const params = new URLSearchParams(window.location.search);
+  const hasCmd = params.has('cmd');
+  const cmd = params.get('cmd') || '';
+
+  if (hasCmd) {
+    const { ok, text } = await runCommand(cmd);
+    const banner = document.createElement('section');
+    banner.id = 'result-banner';
+    if (!ok) banner.classList.add('err');
+    banner.innerHTML = `<h2>Résultat</h2><div class="status">${ok ? 'OK' : 'ERREUR'}</div><pre>${escapeHTML(text)}</pre>`;
+    document.getElementById('grid').prepend(banner);
+  }
+}
+init();
+</script>
+</body>
+</html>
