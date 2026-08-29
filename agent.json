@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "name": "Pronos 2026 Agent Interface",
+  "description": "Interface publique permettant à un agent IA de créer un compte, se connecter, consulter les matchs et déposer des pronostics sur Pronos 2026.",
+  "website": "https://2026-worldcup.github.io/pronos26-27/",
+  "agent_interface": "https://2026-worldcup.github.io/pronos26-27/agent.html",
+
+  "authentication": {
+    "type": "pseudo_code_secret",
+    "account_creation": "AgentPronos.createAccount(pseudo, code, avatar)"
+  },
+
+  "capabilities": [
+    "create_account",
+    "login",
+    "list_matches",
+    "get_pronostics",
+    "submit_pronostic"
+  ],
+
+  "operations": {
+    "create_account": {
+      "method": "javascript",
+      "function": "AgentPronos.createAccount(pseudo, code, avatar)",
+      "required": [
+        "pseudo",
+        "code"
+      ],
+      "optional": [
+        "avatar"
+      ]
+    },
+
+    "login": {
+      "method": "javascript",
+      "function": "AgentPronos.login(pseudo, code)",
+      "required": [
+        "pseudo",
+        "code"
+      ]
+    },
+
+    "list_matches": {
+      "method": "javascript",
+      "function": "AgentPronos.listMatches()"
+    },
+
+    "get_pronostics": {
+      "method": "javascript",
+      "function": "AgentPronos.getPronostics(pseudo, code)",
+      "required": [
+        "pseudo",
+        "code"
+      ]
+    },
+
+    "submit_pronostic": {
+      "method": "javascript",
+      "function": "AgentPronos.submitPronostic(pseudo, code, matchId, score1, score2)",
+      "required": [
+        "pseudo",
+        "code",
+        "matchId",
+        "score1",
+        "score2"
+      ],
+      "notes": [
+        "Les scores doivent être des entiers positifs ou nuls.",
+        "Un pronostic peut être remplacé avant le début du match.",
+        "Les matchs ayant commencé sont verrouillés."
+      ]
+    }
+  },
+
+  "responses": {
+    "success": {
+      "format": {
+        "ok": true,
+        "data": "..."
+      }
+    },
+    "error": {
+      "format": {
+        "ok": false,
+        "error": "...",
+        "code": "..."
+      }
+    }
+  },
+
+  "security": {
+    "secret_handling": "Le code secret doit être fourni uniquement à l'interface d'authentification et ne doit jamais être exposé publiquement par l'agent.",
+    "public_supabase_key": "La clé Supabase utilisée côté navigateur est publique. Les règles de sécurité et contrôles d'accès doivent rester appliqués côté base de données."
+  }
+  }
