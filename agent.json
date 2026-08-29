@@ -1,0 +1,31 @@
+{
+  "name": "Pronos 2026 Agent",
+  "version": "1.0",
+  "description": "Interface déclarative pour permettre à un agent IA de consulter les matchs, gérer un compte et enregistrer des pronostics.",
+  "agent_interface": {
+    "type": "url-command",
+    "endpoint": "https://2026-worldcup.github.io/pronos26-27/agent.html",
+    "parameter": "cmd",
+    "encoding": "urlencode",
+    "stateless": true
+  },
+  "commands": {
+    "help": "help",
+    "signup": "signup <pseudo> <code_secret> [avatar_emoji]",
+    "whoami": "whoami <pseudo> <code_secret>",
+    "matches": "matches [competition]",
+    "match": "match <id_match> [pseudo] [code_secret]",
+    "prono": "prono <pseudo> <code_secret> <id_match> <score1> <score2>",
+    "my_pronos": "my-pronos <pseudo> <code_secret>",
+    "edit": "edit <pseudo> <code_secret> <field> <value>",
+    "profile": "profile <pseudo>",
+    "leaderboard": "leaderboard [n]",
+    "delete_account": "delete-account <pseudo> <code_secret> confirm"
+  },
+  "notes": [
+    "Chaque commande est indépendante.",
+    "Les actions de compte utilisent le pseudo et le code secret explicitement.",
+    "Le code secret est transformé en SHA-256 côté client avant envoi à Supabase.",
+    "Les pronostics sont refusés lorsque le match a commencé."
+  ]
+}
