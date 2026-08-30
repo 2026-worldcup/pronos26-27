@@ -244,7 +244,6 @@ function formatDateFr(isoStr) {
     return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-// Convertit ISO UTC vers format compatible input type="datetime-local"
 function toDatetimeLocal(isoStr) {
     if (!isoStr) return '';
     const d = new Date(isoStr);
@@ -252,9 +251,6 @@ function toDatetimeLocal(isoStr) {
     return d.toISOString().slice(0, 16);
 }
 
-/* ============================================================
-   GESTION NAVIGATION ET SÉLECTION
-   ============================================================ */
 function selectCompetition(code) {
     currentComp = code;
     document.querySelectorAll('.comp-btn').forEach(btn => {
@@ -272,9 +268,6 @@ function switchTab(tab) {
     document.getElementById('tab-edit').style.display = tab === 'edit' ? 'block' : 'none';
 }
 
-/* ============================================================
-   CHARGEMENT & CALCUL ORDER_INDEX
-   ============================================================ */
 async function loadMatches() {
     try {
         const { data, error } = await supabaseClient
@@ -283,10 +276,8 @@ async function loadMatches() {
             .eq('competition', currentComp)
             .order('order_index', { ascending: true })
             .order('match_date', { ascending: true });
-
         if (error) throw error;
         matchesList = data || [];
-
         updateNextOrderIndex();
         renderMatchList();
     } catch (e) {
@@ -295,17 +286,10 @@ async function loadMatches() {
 }
 
 function updateNextOrderIndex() {
-    if (matchesList.length === 0) {
-        document.getElementById('add-order').value = 1;
-    } else {
-        const maxOrder = Math.max(...matchesList.map(m => m.order_index || 0));
-        document.getElementById('add-order').value = maxOrder + 1;
-    }
+    if (matchesList.length === 0) document.getElementById('add-order').value = 1;
+    else document.getElementById('add-order').value = Math.max(...matchesList.map(m => m.order_index || 0)) + 1;
 }
 
-/* ============================================================
-   AJOUT DE MATCH
-   ============================================================ */
 async function handleAddMatch(e) {
     e.preventDefault();
     const team1 = document.getElementById('add-team1').value.trim();
@@ -313,135 +297,56 @@ async function handleAddMatch(e) {
     const dateVal = document.getElementById('add-date').value;
     const phase = document.getElementById('add-phase').value.trim();
     const orderIndex = parseInt(document.getElementById('add-order').value, 10);
-
-    if (!team1 || !team2 || !dateVal || !phase) {
-        showToast("Veuillez remplir tous les champs.", "error");
-        return;
-    }
-
-    // Génération d'un ID unique au format : COMP-TIMESTAMP (ex: L1-1718900000)
+    if (!team1 || !team2 || !dateVal || !phase) { showToast("Veuillez remplir tous les champs.", "error"); return; }
     const matchId = `${currentComp}-${Date.now()}`;
-    const isoDate = new Date(dateVal).toISOString();
-
-    const newMatch = {
-        id: matchId,
-        competition: currentComp,
-        team1,
-        team2,
-        match_date: isoDate,
-        phase,
-        order_index: orderIndex,
-        created_at: new Date().toISOString()
-    };
-
+    const newMatch = { id: matchId, competition: currentComp, team1, team2, match_date: new Date(dateVal).toISOString(), phase, order_index: orderIndex, created_at: new Date().toISOString() };
     const { error } = await supabaseClient.from('matches').insert([newMatch]);
-
-    if (error) {
-        showToast("Erreur lors de l'ajout : " + error.message, "error");
-    } else {
-        showToast("Match ajouté avec succès !");
-        document.getElementById('add-team1').value = '';
-        document.getElementById('add-team2').value = '';
-        document.getElementById('add-date').value = '';
-        await loadMatches();
-    }
+    if (error) showToast("Erreur lors de l'ajout : " + error.message, "error");
+    else { showToast("Match ajouté avec succès !"); document.getElementById('add-team1').value = ''; document.getElementById('add-team2').value = ''; document.getElementById('add-date').value = ''; await loadMatches(); }
 }
 
-/* ============================================================
-   ÉDITION ET SAISIE DES RÉSULTATS
-   ============================================================ */
 function renderMatchList() {
     const container = document.getElementById('match-list-container');
     const filter = document.getElementById('filter-search').value.toLowerCase();
-
-    const filtered = matchesList.filter(m => 
-        m.team1.toLowerCase().includes(filter) ||
-        m.team2.toLowerCase().includes(filter) ||
-        m.phase.toLowerCase().includes(filter)
-    );
-
-    if (filtered.length === 0) {
-        container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Aucun match trouvé pour cette compétition.</p>`;
-        return;
-    }
-
+    const filtered = matchesList.filter(m => m.team1.toLowerCase().includes(filter) || m.team2.toLowerCase().includes(filter) || m.phase.toLowerCase().includes(filter));
+    if (filtered.length === 0) { container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Aucun match trouvé pour cette compétition.</p>`; return; }
     container.innerHTML = filtered.map(m => {
         const s1 = m.score1 !== null && m.score1 !== undefined ? m.score1 : '';
         const s2 = m.score2 !== null && m.score2 !== undefined ? m.score2 : '';
-
-        return `
-        <div class="match-item">
-            <div class="match-info">
-                <div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div>
-                <div class="match-meta">📅 ${formatDateFr(m.match_date)} | 🏷️ ${escapeHtml(m.phase)} | Index: ${m.order_index}</div>
-            </div>
-            <div class="score-inputs">
-                <input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-">
-                <span>:</span>
-                <input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-">
-                <button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button>
-            </div>
-            <div class="match-actions">
-                <button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button>
-            </div>
-        </div>`;
+        return `<div class="match-item"><div class="match-info"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div><div class="match-meta">📅 ${formatDateFr(m.match_date)} | 🏷️ ${escapeHtml(m.phase)} | Index: ${m.order_index}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button></div></div>`;
     }).join('');
 }
 
 async function saveScore(matchId) {
     const s1Val = document.getElementById(`score1-${matchId}`).value;
     const s2Val = document.getElementById(`score2-${matchId}`).value;
-
     const score1 = s1Val === '' ? null : parseInt(s1Val, 10);
     const score2 = s2Val === '' ? null : parseInt(s2Val, 10);
-
-    const { error } = await supabaseClient
-        .from('matches')
-        .update({ score1, score2 })
-        .eq('id', matchId);
-
-    if (error) {
-        showToast("Erreur d'enregistrement : " + error.message, "error");
-    } else {
-        showToast("Score mis à jour !");
-        loadMatches();
-    }
+    const { error } = await supabaseClient.from('matches').update({ score1, score2 }).eq('id', matchId);
+    if (error) showToast("Erreur d'enregistrement : " + error.message, "error");
+    else { showToast("Score mis à jour !"); loadMatches(); }
 }
 
 async function deleteMatch(matchId) {
     if (!confirm("Voulez-vous vraiment supprimer ce match ? Cette action est irréversible.")) return;
-
     const { error } = await supabaseClient.from('matches').delete().eq('id', matchId);
-
-    if (error) {
-        showToast("Erreur lors de la suppression : " + error.message, "error");
-    } else {
-        showToast("Match supprimé.");
-        loadMatches();
-    }
+    if (error) showToast("Erreur lors de la suppression : " + error.message, "error");
+    else { showToast("Match supprimé."); loadMatches(); }
 }
 
-/* ============================================================
-   MODALE D'ÉDITION COMPLÈTE
-   ============================================================ */
 function openEditModal(matchId) {
     const m = matchesList.find(x => x.id === matchId);
     if (!m) return;
-
     document.getElementById('edit-id').value = m.id;
     document.getElementById('edit-team1').value = m.team1;
     document.getElementById('edit-team2').value = m.team2;
     document.getElementById('edit-date').value = toDatetimeLocal(m.match_date);
     document.getElementById('edit-phase').value = m.phase;
     document.getElementById('edit-order').value = m.order_index;
-
     document.getElementById('edit-modal').style.display = 'flex';
 }
 
-function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
-}
+function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
 
 async function handleSaveEdit(e) {
     e.preventDefault();
@@ -451,35 +356,15 @@ async function handleSaveEdit(e) {
     const dateVal = document.getElementById('edit-date').value;
     const phase = document.getElementById('edit-phase').value.trim();
     const order_index = parseInt(document.getElementById('edit-order').value, 10);
-
-    const { error } = await supabaseClient
-        .from('matches')
-        .update({
-            team1,
-            team2,
-            match_date: new Date(dateVal).toISOString(),
-            phase,
-            order_index
-        })
-        .eq('id', id);
-
-    if (error) {
-        showToast("Erreur : " + error.message, "error");
-    } else {
-        showToast("Match modifié avec succès !");
-        closeEditModal();
-        loadMatches();
-    }
+    const { error } = await supabaseClient.from('matches').update({ team1, team2, match_date: new Date(dateVal).toISOString(), phase, order_index }).eq('id', id);
+    if (error) showToast("Erreur : " + error.message, "error");
+    else { showToast("Match modifié avec succès !"); closeEditModal(); loadMatches(); }
 }
 
-function escapeHtml(str) {
-    return String(str || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}
+function escapeHtml(str) { return String(str || '').replace(/[&<>\"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;' }[c])); }
 
-/* ============================================================
-   INITIALISATION
-   ============================================================ */
 loadMatches();
 </script>
+<script src="./league-nations-admin.js"></script>
 </body>
 </html>
