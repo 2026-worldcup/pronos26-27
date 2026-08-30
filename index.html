@@ -13,7 +13,7 @@
     const response = await fetch('./legacy.html', { cache: 'no-store' });
     if (!response.ok) throw new Error('Impossible de charger l’application.');
     let html = await response.text();
-    const enhancementScript = '<script src="./profile-status.js"></scr' + 'ipt><script src="./league-nations.js"></scr' + 'ipt><script src="./site-tools.js"></scr' + 'ipt></body>';
+    const enhancementScript = '<script src="./js/profile-status.js"></scr' + 'ipt><script src="./js/league-nations.js"></scr' + 'ipt><script src="./js/site-tools.js"></scr' + 'ipt></body>';
     html = html.replace('</body>', enhancementScript);
     document.open();
     document.write(html);
