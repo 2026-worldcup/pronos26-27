@@ -29,11 +29,11 @@
         } catch (_) {}
     }
 
-    function createRefreshButton(logoutButton) {
-        const button = logoutButton.cloneNode(true);
+    function createRefreshButton() {
+        const button = document.createElement('button');
         button.id = 'hard-refresh';
         button.type = 'button';
-        button.title = "Actualiser le site sans utiliser le cache";
+        button.title = 'Actualiser le site sans utiliser le cache';
         button.setAttribute('aria-label', 'Actualiser le site');
         button.innerHTML = `
             <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -44,7 +44,9 @@
             </svg>
             <span>Actualiser</span>`;
 
-        button.addEventListener('click', async () => {
+        button.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             button.disabled = true;
             button.classList.add('refreshing');
             const label = button.querySelector('span');
@@ -73,30 +75,48 @@
     function install() {
         if (document.getElementById('hard-refresh')) return;
 
-        const buttons = [...document.querySelectorAll('button, a')];
-        const logoutButton = buttons.find(el => el.textContent.trim().toLowerCase().includes('déconnexion'));
-        if (!logoutButton) return;
+        const header = document.querySelector('.header');
+        const authBar = document.querySelector('.auth-bar');
+        if (!header || !authBar) return;
 
-        const refreshButton = createRefreshButton(logoutButton);
-        refreshButton.classList.add('site-refresh-button');
-        logoutButton.parentNode.insertBefore(refreshButton, logoutButton);
+        const refreshRow = document.createElement('div');
+        refreshRow.className = 'site-refresh-row';
+        refreshRow.appendChild(createRefreshButton());
+        header.insertBefore(refreshRow, authBar);
 
         const style = document.createElement('style');
         style.textContent = `
+            .site-refresh-row {
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                margin-top: -2px;
+                margin-bottom: -3px;
+            }
             #hard-refresh {
-                position: relative;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                gap: 9px;
-                min-width: 150px;
-                cursor: pointer;
-                font: inherit;
+                gap: 8px;
+                min-height: 34px;
+                padding: 6px 14px;
+                background: transparent;
+                border: 1px solid rgba(255,255,255,.4);
+                color: #fff;
+                border-radius: 20px;
+                font: 600 .78rem/1 'Montserrat', system-ui, sans-serif;
+                transition: background-color .2s ease, border-color .2s ease, transform .2s ease, opacity .2s ease;
             }
+            #hard-refresh:hover {
+                background: rgba(255,255,255,.08);
+                border-color: rgba(255,255,255,.65);
+                transform: translateY(-1px);
+            }
+            #hard-refresh:active { transform: translateY(0) scale(.98); }
             #hard-refresh .refresh-icon {
-                width: 19px;
-                height: 19px;
-                flex: 0 0 19px;
+                width: 17px;
+                height: 17px;
+                flex: 0 0 17px;
                 transition: transform .45s cubic-bezier(.22,1,.36,1);
             }
             #hard-refresh:hover .refresh-icon { transform: rotate(180deg); }
@@ -104,8 +124,8 @@
             #hard-refresh:disabled { cursor: wait; opacity: .72; }
             @keyframes site-refresh-spin { to { transform: rotate(360deg); } }
             @media (max-width: 640px) {
-                #hard-refresh { min-width: 0; padding-left: 18px !important; padding-right: 18px !important; }
-                #hard-refresh span { display: inline; }
+                .site-refresh-row { justify-content: flex-start; }
+                #hard-refresh { padding-left: 13px; padding-right: 13px; }
             }
         `;
         document.head.appendChild(style);
