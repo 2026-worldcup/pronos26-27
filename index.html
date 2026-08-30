@@ -17,7 +17,7 @@
     const response = await fetch('./legacy.html?v=' + version, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
     if (!response.ok) throw new Error('Impossible de charger l’application.');
     let html = await response.text();
-    const enhancementScript = '<script src="./js/profile-status.js?v=' + version + '"></scr' + 'ipt><script src="./js/profile-stats.js?v=' + version + '"></scr' + 'ipt><script src="./js/profile-form-style.js?v=' + version + '"></scr' + 'ipt><script src="./js/league-nations.js?v=' + version + '"></scr' + 'ipt><script src="./js/site-tools.js?v=' + version + '"></scr' + 'ipt><script src="./js/notifications.js?v=' + version + '"></scr' + 'ipt></body>';
+    const enhancementScript = '<script src="./js/profile-status.js?v=' + version + '"></scr' + 'ipt><script src="./js/profile-stats.js?v=' + version + '"></scr' + 'ipt><script src="./js/profile-form-style.js?v=' + version + '"></scr' + 'ipt><script src="./js/league-nations.js?v=' + version + '"></scr' + 'ipt><script src="./js/site-tools.js?v=' + version + '"></scr' + 'ipt><script src="./js/notifications.js?v=' + version + '"></scr' + 'ipt><script src="./js/feedback.js?v=' + version + '"></scr' + 'ipt></body>';
     html = html.replace('</body>', enhancementScript);
     document.open();
     document.write(html);
