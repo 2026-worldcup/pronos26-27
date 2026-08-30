@@ -64,7 +64,7 @@
             switcher.className = 'ldn-division-switcher';
             switcher.setAttribute('role', 'tablist');
             switcher.setAttribute('aria-label', 'Niveau de la Ligue des Nations');
-            switcher.innerHTML = `<button type="button" role="tab" aria-selected="false" data-division="A" class="ldn-division-btn">Ligue A</button><button type="button" role="tab" aria-selected="false" data-division="B" class="ldn-division-btn">Ligue B</button>`;
+            switcher.innerHTML = `<span class="ldn-slider" aria-hidden="true"></span><button type="button" role="tab" aria-selected="false" data-division="A" class="ldn-division-btn">Ligue A</button><button type="button" role="tab" aria-selected="false" data-division="B" class="ldn-division-btn">Ligue B</button>`;
             const buttons = switcher.querySelectorAll('.ldn-division-btn');
             buttons.forEach(btn => btn.addEventListener('click', () => {
                 currentDivision = btn.dataset.division;
@@ -74,6 +74,7 @@
                     b.classList.toggle('active', active);
                     b.setAttribute('aria-selected', active ? 'true' : 'false');
                 });
+                switcher.classList.toggle('division-b', currentDivision === 'B');
                 renderLdn();
                 updateLdnBadge();
             }));
@@ -83,6 +84,7 @@
                 b.classList.toggle('active', active);
                 b.setAttribute('aria-selected', active ? 'true' : 'false');
             });
+            switcher.classList.toggle('division-b', currentDivision === 'B');
         }
 
         window.buildNavTabs = function() { originalBuildNavTabs(); rebuildLdnControls(); };
@@ -90,13 +92,14 @@
 
         const style = document.createElement('style');
         style.textContent = `
-            .ldn-division-switcher { display:inline-flex; align-items:center; padding:4px; gap:3px; margin-right:auto; background:color-mix(in srgb,var(--bg-card) 88%,var(--border)); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); }
-            .ldn-division-btn { position:relative; border:0; background:transparent; color:var(--text-muted); padding:8px 16px; border-radius:9px; font:700 .76rem/1 inherit; letter-spacing:.01em; transition:background .18s ease,color .18s ease,box-shadow .18s ease; }
+            .ldn-division-switcher { position:relative; display:inline-flex; align-items:center; padding:4px; gap:0; margin-right:auto; background:color-mix(in srgb,var(--bg-card) 88%,var(--border)); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); isolation:isolate; }
+            .ldn-slider { position:absolute; z-index:-1; top:4px; bottom:4px; left:4px; width:calc(50% - 2px); border-radius:9px; background:var(--bg-body); box-shadow:0 2px 7px rgba(0,0,0,.16); transition:transform .3s cubic-bezier(.22,1,.36,1); }
+            .ldn-division-switcher.division-b .ldn-slider { transform:translateX(100%); }
+            .ldn-division-btn { position:relative; z-index:1; border:0; background:transparent; color:var(--text-muted); padding:8px 16px; min-width:88px; border-radius:9px; font:700 .76rem/1 inherit; letter-spacing:.01em; transition:color .18s ease; }
             .ldn-division-btn:hover { color:var(--text-main); }
             .ldn-division-btn:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
-            .ldn-division-btn.active { background:var(--bg-body); color:var(--text-main); box-shadow:0 2px 7px rgba(0,0,0,.16); }
-            .ldn-division-btn.active::after { content:''; position:absolute; left:20%; right:20%; bottom:3px; height:2px; border-radius:2px; background:var(--primary); }
-            @media (max-width:640px) { .ldn-division-switcher { width:100%; margin:2px 0 6px; } .ldn-division-btn { flex:1; padding:9px 12px; } }
+            .ldn-division-btn.active { color:var(--text-main); }
+            @media (max-width:640px) { .ldn-division-switcher { width:100%; margin:2px 0 6px; } .ldn-division-btn { flex:1; } }
         `;
         document.head.appendChild(style);
         rebuildLdnControls();
