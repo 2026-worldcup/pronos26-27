@@ -26,8 +26,10 @@ export default async () => {
   const results = await Promise.allSettled((jobs || []).map(async (job: any) => {
     try {
       await webpush.sendNotification(job.subscription, JSON.stringify({
-        title: `${job.countdown} pour pronostiquer`, body: `${job.team1} × ${job.team2}`,
-        tag: `pronos26-match-${job.match_id}`, url: './?notifications=1'
+        title: job.notification_title || `${job.countdown} pour pronostiquer`,
+        body: job.notification_body || `${job.team1} × ${job.team2}`,
+        tag: `pronos26-${job.notification_type}-${job.match_id}`,
+        url: job.notification_url || './?notifications=1'
       }));
       await rpc('complete_push_notification', { p_server_token_hash: token, p_delivery_id: job.delivery_id });
     } catch (error: any) {
