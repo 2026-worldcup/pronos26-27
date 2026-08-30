@@ -4,10 +4,74 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pronos 2026</title>
+<style>
+#site-tools{position:fixed;top:14px;right:14px;z-index:9999;display:flex;gap:8px}
+#hard-refresh{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid rgba(255,255,255,.18);border-radius:10px;background:rgba(15,37,87,.92);color:#fff;font:700 12px system-ui,sans-serif;cursor:pointer;box-shadow:0 5px 18px rgba(0,0,0,.18);backdrop-filter:blur(8px);transition:transform .18s ease,background .18s ease}
+#hard-refresh:hover{transform:translateY(-1px);background:rgba(15,37,87,1)}
+#hard-refresh:active{transform:translateY(0) scale(.97)}
+#hard-refresh[disabled]{opacity:.7;cursor:wait}
+</style>
 </head>
 <body>
 <p style="font-family:system-ui,sans-serif;text-align:center;margin:40px;">Chargement de Pronos 2026…</p>
+<div id="site-tools"><button id="hard-refresh" type="button" title="Recharger l'application sans utiliser le cache">↻ <span>Actualiser</span></button></div>
 <script>
+(() => {
+  const POSITION_KEY = 'pronos26_scroll_position_v1';
+  let saveTimer;
+
+  function savePosition() {
+    try {
+      sessionStorage.setItem(POSITION_KEY, JSON.stringify({ x: window.scrollX, y: window.scrollY }));
+    } catch (_) {}
+  }
+
+  function restorePosition() {
+    try {
+      const raw = sessionStorage.getItem(POSITION_KEY);
+      if (!raw) return;
+      const pos = JSON.parse(raw);
+      if (!Number.isFinite(pos.y)) return;
+      let attempts = 0;
+      const restore = () => {
+        window.scrollTo(pos.x || 0, pos.y);
+        attempts++;
+        if (attempts < 12 && Math.abs(window.scrollY - pos.y) > 8) requestAnimationFrame(restore);
+        else sessionStorage.removeItem(POSITION_KEY);
+      };
+      requestAnimationFrame(restore);
+    } catch (_) {}
+  }
+
+  window.addEventListener('scroll', () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(savePosition, 80);
+  }, { passive: true });
+  window.addEventListener('pagehide', savePosition);
+
+  document.getElementById('hard-refresh').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.querySelector('span').textContent = 'Actualisation…';
+    savePosition();
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => caches.delete(key)));
+      }
+      if (navigator.serviceWorker) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(reg => reg.unregister()));
+      }
+    } catch (_) {}
+    const url = new URL(window.location.href);
+    url.searchParams.set('_refresh', Date.now());
+    window.location.replace(url.href);
+  });
+
+  window.addEventListener('load', restorePosition, { once: true });
+})();
+
 (async () => {
   try {
     const response = await fetch('./legacy.html', { cache: 'no-store' });
