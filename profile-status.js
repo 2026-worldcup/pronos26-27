@@ -28,7 +28,6 @@
     return text ? `<div class="profile-status-bubble" role="status">${safeEscape(text)}</div>` : '';
   }
 
-  /* Utilise l'avatar déjà présent dans Mon Compte : aucun second avatar. */
   async function renderAccountStatus() {
     const avatar = document.getElementById('acc-hero-avatar');
     if (!avatar) return;
@@ -79,7 +78,6 @@
     await renderAccountStatus();
   }
 
-  /* ---------- Historique : modale indépendante ---------- */
   function ensureHistoryModal() {
     if (document.getElementById('profile-history-modal')) return;
     const modal = document.createElement('div');
@@ -157,7 +155,7 @@
       .account-hero-avatar,.profile-avatar-xl { position:relative !important; }
       .profile-status-bubble { position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%); z-index:50; box-sizing:border-box; width:max-content; max-width:min(300px,calc(100vw - 30px)); padding:9px 13px; border-radius:16px 16px 16px 5px; background:var(--bg-card); color:var(--text-main); border:1px solid var(--border); box-shadow:0 9px 24px rgba(15,37,87,.18); font-size:.74rem; font-weight:700; line-height:1.3; text-align:left; white-space:normal; overflow-wrap:anywhere; word-break:break-word; pointer-events:none; }
       .profile-status-bubble::after { content:''; position:absolute; left:50%; bottom:-6px; width:11px; height:11px; background:var(--bg-card); border-right:1px solid var(--border); border-bottom:1px solid var(--border); transform:translateX(-50%) rotate(45deg); }
-      .account-hero { overflow:visible !important; }
+      .account-hero,.profile-social-card { overflow:visible !important; }
       .profile-view-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; margin:14px auto 0; min-width:190px; }
       .profile-view-icon,.profile-history-icon { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto; }
       .status-edit-hint { display:block; margin-top:5px; color:var(--text-muted); font-size:.68rem; }
