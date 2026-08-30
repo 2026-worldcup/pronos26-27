@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Pronos 2026</title>
 </head>
 <body>
@@ -10,10 +13,11 @@
 <script>
 (async () => {
   try {
-    const response = await fetch('./legacy.html', { cache: 'no-store' });
+    const version = Date.now();
+    const response = await fetch('./legacy.html?v=' + version, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
     if (!response.ok) throw new Error('Impossible de charger l’application.');
     let html = await response.text();
-    const enhancementScript = '<script src="./js/profile-status.js"></scr' + 'ipt><script src="./js/league-nations.js"></scr' + 'ipt><script src="./js/site-tools.js"></scr' + 'ipt><script src="./js/notifications.js"></scr' + 'ipt></body>';
+    const enhancementScript = '<script src="./js/profile-status.js?v=' + version + '"></scr' + 'ipt><script src="./js/league-nations.js?v=' + version + '"></scr' + 'ipt><script src="./js/site-tools.js?v=' + version + '"></scr' + 'ipt><script src="./js/notifications.js?v=' + version + '"></scr' + 'ipt></body>';
     html = html.replace('</body>', enhancementScript);
     document.open();
     document.write(html);
