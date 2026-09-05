@@ -1,4 +1,4 @@
-/* Administration — gestion de la Ligue A / Ligue B de la Ligue des Nations + Premier League. */
+/* Administration — gestion de la Ligue A / Ligue B de la Ligue des Nations + Premier League + Serie A. */
 (() => {
     window.addEventListener('load', () => {
         if (window.__ldnAdminInstalled) return;
@@ -25,7 +25,7 @@
         }
 
         const style = document.createElement('style');
-        style.textContent = `#add-division-group,#edit-division-group{display:none}.admin-division-badge{display:inline-flex;align-items:center;margin-left:6px;padding:3px 8px;border-radius:999px;font-size:.68rem;font-weight:800;background:#172554;color:#93c5fd;border:1px solid #1d4ed8}.admin-pl-badge{display:inline-flex;align-items:center;margin-left:6px;padding:3px 8px;border-radius:999px;font-size:.68rem;font-weight:800;background:#3b0a2a;color:#f9a8d4;border:1px solid #ec4899}`;
+        style.textContent = `#add-division-group,#edit-division-group{display:none}.admin-division-badge{display:inline-flex;align-items:center;margin-left:6px;padding:3px 8px;border-radius:999px;font-size:.68rem;font-weight:800;background:#172554;color:#93c5fd;border:1px solid #1d4ed8}.admin-pl-badge{display:inline-flex;align-items:center;margin-left:6px;padding:3px 8px;border-radius:999px;font-size:.68rem;font-weight:800;background:#3b0a2a;color:#f9a8d4;border:1px solid #ec4899}.admin-sa-badge{display:inline-flex;align-items:center;margin-left:6px;padding:3px 8px;border-radius:999px;font-size:.68rem;font-weight:800;background:#052e16;color:#86efac;border:1px solid #22c55e}`;
         document.head.appendChild(style);
 
         function updateDivisionUI() {
@@ -88,13 +88,16 @@
             const container=document.getElementById('match-list-container'); const filterEl=document.getElementById('filter-search'); if(!container||!filterEl)return;
             const filter=filterEl.value.toLowerCase(); const filtered=matchesList.filter(m=>m.team1.toLowerCase().includes(filter)||m.team2.toLowerCase().includes(filter)||m.phase.toLowerCase().includes(filter));
             if(!filtered.length){container.innerHTML=`<p style="text-align:center;color:var(--text-muted);padding:20px;">Aucun match trouvé pour ${currentComp==='LDN'?`la Ligue ${currentDivision}`:'cette compétition'}.</p>`;return;}
-            container.innerHTML=filtered.map(m=>{const s1=m.score1??'';const s2=m.score2??'';const divBadge=m.competition==='LDN'?`<span class="admin-division-badge">Ligue ${m.division}</span>`:'';const plBadge=m.competition==='PL'?`<span class="admin-pl-badge">Premier League</span>`:'';return `<div class="match-item"><div class="match-info"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div><div class="match-meta">${formatDateFr(m.match_date)} | ${escapeHtml(m.phase)} | Index: ${m.order_index}${divBadge}${plBadge}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">Supprimer</button></div></div>`;}).join('');
+            container.innerHTML=filtered.map(m=>{const s1=m.score1??'';const s2=m.score2??'';const divBadge=m.competition==='LDN'?`<span class="admin-division-badge">Ligue ${m.division}</span>`:'';const plBadge=m.competition==='PL'?`<span class="admin-pl-badge">Premier League</span>`:'';const saBadge=m.competition==='SA'?`<span class="admin-sa-badge">Serie A</span>`:'';return `<div class="match-item"><div class="match-info"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div><div class="match-meta">${formatDateFr(m.match_date)} | ${escapeHtml(m.phase)} | Index: ${m.order_index}${divBadge}${plBadge}${saBadge}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">Supprimer</button></div></div>`;}).join('');
         };
 
         const selector=document.querySelector('.comp-selector');
         if(selector){
             if(!selector.querySelector('[data-code="PL"]')){
                 const pl=document.createElement('button'); pl.className='comp-btn'; pl.dataset.code='PL'; pl.textContent='Premier League'; pl.addEventListener('click',()=>window.selectCompetition('PL')); selector.appendChild(pl);
+            }
+            if(!selector.querySelector('[data-code="SA"]')){
+                const sa=document.createElement('button'); sa.className='comp-btn'; sa.dataset.code='SA'; sa.textContent='Serie A'; sa.addEventListener('click',()=>window.selectCompetition('SA')); selector.appendChild(sa);
             }
             if(!document.getElementById('admin-ldn-division-switch')){
                 const wrap=document.createElement('div'); wrap.id='admin-ldn-division-switch'; wrap.style.cssText='display:none;width:100%;gap:8px;align-items:center;margin-top:-8px;margin-bottom:20px;flex-wrap:wrap;';
