@@ -345,7 +345,7 @@ body.dark-mode .locked-note { background: #453a1a; color: #fde68a; }
         <div class="logo-title-row">
             <div class="logo-area">
                 <h1>Pronos <span class="accent">2026-2027</span></h1>
-                <div class="subtitle">Ligue 1 · Ligue des Champions · Ligue des Nations · Premier League · Serie A</div>
+                <div class="subtitle">Ligue 1 · Ligue des Champions · Ligue des Nations · Premier League · Serie A · La Liga · Bundesliga</div>
             </div>
             <button class="btn-theme-toggle" id="theme-toggle" onclick="toggleTheme()">🌙 Mode Sombre</button>
         </div>
@@ -522,7 +522,11 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const COMPETITIONS = [
     { code: 'L1',  name: 'Ligue 1' },
     { code: 'LDC', name: 'Ligue des Champions' },
-    { code: 'LDN', name: 'Ligue des Nations' }
+    { code: 'LDN', name: 'Ligue des Nations' },
+    { code: 'PL',  name: 'Premier League' },
+    { code: 'SA',  name: 'Serie A' },
+    { code: 'LL',  name: 'La Liga' },
+    { code: 'BL',  name: 'Bundesliga' }
 ];
 
 const AVATAR_EMOJIS = [
@@ -1002,13 +1006,14 @@ async function calculateLeaderboard() {
     allMatches.forEach(m => { if (m.score1 !== null && m.score2 !== null) scoresByMatch[m.id] = { s1: m.score1, s2: m.score2 }; });
 
     const userScores = {};
-    users.forEach(u => { userScores[u.pseudo] = { pseudo: u.pseudo, avatar: u.avatar || '⚽', exacts: 0, diffs: 0, partials: 0, totalPoints: 0, totalPronos: 0 }; });
+    users.forEach(u => { userScores[u.pseudo] = { pseudo: u.pseudo, avatar: u.avatar || '⚽', exacts: 0, diffs: 0, partials: 0, totalPoints: 0, totalPronos: 0, scoredPronos: 0 }; });
 
     pronos.forEach(p => {
         if (!userScores[p.pseudo]) return;
         userScores[p.pseudo].totalPronos++;
         const real = scoresByMatch[p.match_id];
         if (!real) return;
+        userScores[p.pseudo].scoredPronos++;
         const actualSign = Math.sign(real.s1 - real.s2);
         const predSign = Math.sign(p.predicted_score1 - p.predicted_score2);
         if (real.s1 === p.predicted_score1 && real.s2 === p.predicted_score2) {
@@ -1068,7 +1073,7 @@ async function calculateLeaderboard() {
             <td><strong>${stringRank}</strong></td>
             <td><span>${player.avatar}</span> <span class="pseudo-link" onclick="openProfileModal('${escapeHTML(player.pseudo)}')">${escapeHTML(player.pseudo)}</span>${meBadge}</td>
             <td style="text-align:right; color:var(--accent);"><strong>${player.totalPoints} pts</strong></td>
-            <td class="leaderboard-ppm">${player.totalPronos ? (player.totalPoints / player.totalPronos).toFixed(2).replace('.', ',') : '0,00'}</td>
+            <td class="leaderboard-ppm">${player.scoredPronos ? (player.totalPoints / player.scoredPronos).toFixed(2).replace('.', ',') : '0,00'}</td>
             <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.exacts}</td>
             <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.diffs}</td>
             <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.partials}</td>
