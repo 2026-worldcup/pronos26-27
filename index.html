@@ -6,10 +6,10 @@
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Pronos 2026</title>
+<title>Pronos 2027</title>
 </head>
 <body>
-<p style="font-family:system-ui,sans-serif;text-align:center;margin:40px;">Chargement de Pronos 2026…</p>
+<p style="font-family:system-ui,sans-serif;text-align:center;margin:40px;">Chargement de Pronos 2027…</p>
 <script>
 (async () => {
   try {
@@ -17,13 +17,13 @@
     const response = await fetch('./legacy.html?v=' + version, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
     if (!response.ok) throw new Error('Impossible de charger l’application.');
     let html = await response.text();
-    const enhancementScript = '<script src="./js/profile-status.js?v=' + version + '"></scr' + 'ipt><script src="./js/profile-stats.js?v=' + version + '"></scr' + 'ipt><script src="./js/profile-form-style.js?v=' + version + '"></scr' + 'ipt><script src="./js/league-nations.js?v=' + version + '"></scr' + 'ipt><script src="./js/premier-league.js?v=' + version + '"></scr' + 'ipt><script src="./js/serie-a.js?v=' + version + '"></scr' + 'ipt><script src="./js/site-tools.js?v=' + version + '"></scr' + 'ipt><script src="./js/notifications.js?v=' + version + '"></scr' + 'ipt><script src="./js/feedback.js?v=' + version + '"></scr' + 'ipt></body>';
+    const enhancementScript = '<script src="./js/profile-status.js?v=' + version + '"></scr' + 'ipt><script src="./js/profile-stats.js?v=' + version + '"></scr' + 'ipt><script src="./js/profile-form-style.js?v=' + version + '"></scr' + 'ipt><script src="./js/league-nations.js?v=' + version + '"></scr' + 'ipt><script src="./js/premier-league.js?v=' + version + '"></scr' + 'ipt><script src="./js/serie-a.js?v=' + version + '"></scr' + 'ipt><script src="./js/site-tools.js?v=' + version + '"></scr' + 'ipt><script src="./js/site-enhancements.js?v=' + version + '"></scr' + 'ipt><script src="./js/feedback.js?v=' + version + '"></scr' + 'ipt></body>';
     html = html.replace('</body>', enhancementScript);
     document.open();
     document.write(html);
     document.close();
   } catch (error) {
-    document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;text-align:center;margin:40px;color:#b91c1c;">Impossible de charger Pronos 2026.</p>';
+    document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;text-align:center;margin:40px;color:#b91c1c;">Impossible de charger Pronos 2027.</p>';
     console.error(error);
   }
 })();
