@@ -159,6 +159,8 @@ body.dark-mode .badge-done { background: #14332190; color: #86efac; }
 table.leaderboard-table { width: 100%; border-collapse: collapse; }
 table.leaderboard-table th { text-align: left; font-size: .72rem; color: var(--text-muted); text-transform: uppercase; padding: 8px 10px; border-bottom: 2px solid var(--border); }
 table.leaderboard-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: .88rem; }
+.leaderboard-ppm { text-align: center; color: var(--primary); font-weight: 800; white-space: nowrap; }
+.ppm-heading { text-align: center; white-space: nowrap; }
 tr.rank-row-gold { background: rgba(229,184,66,0.1); }
 tr.rank-row-silver { background: rgba(170,180,192,0.1); }
 tr.rank-row-bronze { background: rgba(205,127,50,0.1); }
@@ -342,8 +344,8 @@ body.dark-mode .locked-note { background: #453a1a; color: #fde68a; }
     <div class="header-inner">
         <div class="logo-title-row">
             <div class="logo-area">
-                <h1>Pronos <span class="accent">2026</span></h1>
-                <div class="subtitle">Ligue 1 · Ligue des Champions · Ligue des Nations</div>
+                <h1>Pronos <span class="accent">2026-2027</span></h1>
+                <div class="subtitle">Ligue 1 · Ligue des Champions · Ligue des Nations · Premier League · Serie A</div>
             </div>
             <button class="btn-theme-toggle" id="theme-toggle" onclick="toggleTheme()">🌙 Mode Sombre</button>
         </div>
@@ -380,7 +382,7 @@ body.dark-mode .locked-note { background: #453a1a; color: #fde68a; }
             <div id="podium-slot"></div>
             <div style="overflow-x:auto;">
                 <table class="leaderboard-table">
-                    <thead><tr><th>Rang</th><th>Joueur</th><th style="text-align:right;">Points</th><th style="text-align:center;">Exacts</th><th style="text-align:center;">Écarts</th><th style="text-align:center;">Issues</th></tr></thead>
+                    <thead><tr><th>Rang</th><th>Joueur</th><th style="text-align:right;">Points</th><th class="ppm-heading">Points / match</th><th style="text-align:center;">Exacts</th><th style="text-align:center;">Écarts</th><th style="text-align:center;">Issues</th></tr></thead>
                     <tbody id="leaderboard-tbody"></tbody>
                 </table>
             </div>
@@ -1066,6 +1068,7 @@ async function calculateLeaderboard() {
             <td><strong>${stringRank}</strong></td>
             <td><span>${player.avatar}</span> <span class="pseudo-link" onclick="openProfileModal('${escapeHTML(player.pseudo)}')">${escapeHTML(player.pseudo)}</span>${meBadge}</td>
             <td style="text-align:right; color:var(--accent);"><strong>${player.totalPoints} pts</strong></td>
+            <td class="leaderboard-ppm">${player.totalPronos ? (player.totalPoints / player.totalPronos).toFixed(2).replace('.', ',') : '0,00'}</td>
             <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.exacts}</td>
             <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.diffs}</td>
             <td style="text-align:center; color:var(--text-muted); font-weight:600;">${player.partials}</td>
