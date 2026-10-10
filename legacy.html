@@ -83,6 +83,7 @@ body.dark-mode .tab.active { color: #061021; }
 .tab-missing-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: #ef4444; color: #fff; font-size: .66rem; font-weight: 800; margin-left: 6px; vertical-align: middle; line-height: 1; }
 
 .page-wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .container { display: none; }
 .container.active { display: block; }
 
@@ -99,6 +100,8 @@ body.dark-mode .tab.active { color: #061021; }
 .btn-toggle-finished.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 body.dark-mode .btn-toggle-finished.active { color: #061021; }
 .btn-toggle-finished svg { flex: 0 0 auto; }
+.finished-window-filter { max-width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-main); font: inherit; font-size: .72rem; font-weight: 700; }
+.finished-window-filter:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .missing-pronos-banner { display: none; background: #fef3c7; color: #92400e; padding: 8px 14px; border-radius: 8px; font-size: .8rem; font-weight: 700; margin-bottom: 14px; }
 body.dark-mode .missing-pronos-banner { background: #453a1a; color: #fde68a; }
@@ -716,6 +719,13 @@ function buildNavTabs() {
         <section class="container${i === 0 ? ' active' : ''}" id="sec-${c.code}">
             <div class="comp-header">
                 <div class="comp-header-left"><h2>${c.name}</h2><span class="comp-sub" id="comp-sub-${c.code}"></span></div>
+                <label class="sr-only" for="finished-window-${c.code}">Filtrer les matchs terminés</label>
+                <select class="finished-window-filter" id="finished-window-${c.code}" aria-label="Filtrer les matchs terminés" onchange="setFinishedWindow('${c.code}', this.value)">
+                    <option value="all">Tous les matchs</option>
+                    <option value="24">Terminés dans les dernières 24 heures</option>
+                    <option value="48">Terminés dans les dernières 48 heures</option>
+                    <option value="168">Terminés dans la dernière semaine</option>
+                </select>
                 <button type="button" class="btn-toggle-finished" id="toggle-finished-${c.code}" onclick="toggleFinishedMatches('${c.code}')">
                     <svg class="icon-eye" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
                     <svg class="icon-eye-off" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.6 21.6 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 5c7 0 11 7 11 7a21.6 21.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -732,6 +742,14 @@ function buildNavTabs() {
    ============================================================ */
 let hideFinishedMatches = {};
 COMPETITIONS.forEach(c => { hideFinishedMatches[c.code] = false; });
+
+const finishedWindowByComp = {};
+COMPETITIONS.forEach(c => { finishedWindowByComp[c.code] = 'all'; });
+
+function setFinishedWindow(code, value) {
+    finishedWindowByComp[code] = value;
+    renderCompetition(code);
+}
 
 function toggleFinishedMatches(code) {
     hideFinishedMatches[code] = !hideFinishedMatches[code];
@@ -872,8 +890,25 @@ function renderCompetition(code) {
     if (subEl) subEl.innerText = `${allCompMatches.length} match${allCompMatches.length > 1 ? 's' : ''}`;
     if (allCompMatches.length === 0) { container.innerHTML = `<p class="empty-note">Aucun match programmé pour le moment.</p>`; renderMissingPronosBanner(code); return; }
 
-    const matches = hideFinishedMatches[code] ? allCompMatches.filter(m => getMatchStatus(m) !== 'done') : allCompMatches;
-    if (matches.length === 0) { container.innerHTML = `<p class="empty-note">Tous les matchs de cette compétition sont terminés.</p>`; renderMissingPronosBanner(code); return; }
+    const windowValue = finishedWindowByComp[code] || 'all';
+    let matches;
+    if (windowValue !== 'all') {
+        const now = Date.now();
+        const windowMs = Number(windowValue) * 60 * 60 * 1000;
+        matches = allCompMatches.filter(m => {
+            if (getMatchStatus(m) !== 'done') return false;
+            const estimatedEnd = new Date(m.match_date).getTime() + 2 * 60 * 60 * 1000;
+            return estimatedEnd <= now && estimatedEnd >= now - windowMs;
+        });
+    } else {
+        matches = hideFinishedMatches[code] ? allCompMatches.filter(m => getMatchStatus(m) !== 'done') : allCompMatches;
+    }
+    if (matches.length === 0) {
+        const message = windowValue !== 'all' ? 'Aucun match terminé dans cette période.' : 'Tous les matchs de cette compétition sont terminés.';
+        container.innerHTML = `<p class="empty-note">${message}</p>`;
+        renderMissingPronosBanner(code);
+        return;
+    }
 
     // Tri strictement chronologique (le plus proche en haut, le plus lointain en bas).
     // Le regroupement par "phase" (journée) suit l'ordre d'apparition du premier match rencontré,
