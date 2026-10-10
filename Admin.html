@@ -73,6 +73,9 @@ input, select { font-family: inherit; }
 .match-teams { font-weight: 800; font-size: 1.05rem; }
 .match-meta { font-size: 0.78rem; color: var(--text-muted); }
 
+.schedule-warning { padding: 12px 14px; margin-bottom: 16px; border: 1px solid var(--danger); border-radius: 10px; background: rgba(239,68,68,.10); color: #fca5a5; font-size: .84rem; line-height: 1.5; }
+.schedule-warning strong { color: #fecaca; }
+
 .score-inputs { display: flex; align-items: center; gap: 8px; }
 .score-inputs input { width: 50px; text-align: center; font-size: 1.1rem; font-weight: 800; padding: 8px; background: var(--bg-body); border: 1px solid var(--border); border-radius: 6px; color: #fff; }
 
@@ -312,9 +315,22 @@ async function handleAddMatch(e) {
 function renderMatchList() {
     const container = document.getElementById('match-list-container');
     const filter = document.getElementById('filter-search').value.toLowerCase();
+    const futureByPhase = new Map();
+    matchesList
+        .filter(m => new Date(m.match_date).getTime() > Date.now() && m.score1 == null && m.score2 == null)
+        .forEach(m => {
+            if (!futureByPhase.has(m.phase)) futureByPhase.set(m.phase, []);
+            futureByPhase.get(m.phase).push(m);
+        });
+    const suspectPhases = [...futureByPhase.entries()]
+        .filter(([, games]) => games.length >= 8 && new Set(games.map(m => new Date(m.match_date).getTime())).size === 1)
+        .map(([phase]) => phase);
+    const warningHtml = suspectPhases.length
+        ? `<div class="schedule-warning"><strong>Horaires à vérifier :</strong> ${suspectPhases.map(escapeHtml).join(', ')} — tous les matchs non joués de cette journée ont exactement la même date et heure. Vérifiez le calendrier officiel avant le coup d’envoi.</div>`
+        : '';
     const filtered = matchesList.filter(m => m.team1.toLowerCase().includes(filter) || m.team2.toLowerCase().includes(filter) || m.phase.toLowerCase().includes(filter));
-    if (filtered.length === 0) { container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Aucun match trouvé pour cette compétition.</p>`; return; }
-    container.innerHTML = filtered.map(m => {
+    if (filtered.length === 0) { container.innerHTML = warningHtml + `<p style="text-align:center; color:var(--text-muted); padding:20px;">Aucun match trouvé pour cette compétition.</p>`; return; }
+    container.innerHTML = warningHtml + filtered.map(m => {
         const s1 = m.score1 !== null && m.score1 !== undefined ? m.score1 : '';
         const s2 = m.score2 !== null && m.score2 !== undefined ? m.score2 : '';
         return `<div class="match-item"><div class="match-info"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div><div class="match-meta">📅 ${formatDateFr(m.match_date)} | 🏷️ ${escapeHtml(m.phase)} | Index: ${m.order_index}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button></div></div>`;
