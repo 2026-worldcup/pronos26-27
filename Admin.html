@@ -72,7 +72,8 @@ input, select { font-family: inherit; }
 .filter-check { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); font-size: .8rem; font-weight: 700; white-space: nowrap; }
 .filter-check input { flex: 0 0 auto; min-width: 0; accent-color: var(--primary); }
 #add-date-confirmed, #edit-confirmed { width: auto; padding: 0; accent-color: var(--primary); }
-.schedule-badge { display: inline-flex; align-items: center; width: fit-content; margin: 0; padding: 6px 10px; border: 1px solid #f59e0b; border-radius: 999px; background: #fef3c7; color: #78350f; font-size: .75rem; font-weight: 800; line-height: 1.2; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
+.schedule-badge { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; margin: 0; padding: 7px 11px; border: 1px solid #f59e0b; border-radius: 8px; background: #fef3c7; color: #78350f; font-size: .78rem; font-weight: 900; line-height: 1.25; box-shadow: 0 2px 6px rgba(120,53,15,.14); }
+.schedule-badge-row { display: flex; justify-content: flex-start; margin-bottom: 8px; }
 .match-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 
 .match-item { background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 16px; align-items: center; }
@@ -194,7 +195,7 @@ input, select { font-family: inherit; }
                     <option value="168">Terminés dans la dernière semaine</option>
                 </select>
             </div>
-            <label class="filter-check"><input type="checkbox" id="filter-date-unconfirmed" onchange="renderMatchList()"> Date à confirmer</label>
+            <label class="filter-check"><input type="checkbox" id="filter-date-confirmed" onchange="renderMatchList()"> Date confirmée</label>
         </div>
         <div id="match-list-container">
             <!-- Liste générée dynamiquement -->
@@ -369,7 +370,7 @@ function renderMatchList() {
     const filter = document.getElementById('filter-search').value.toLowerCase();
     const statusFilter = document.getElementById('filter-match-status').value;
     const finishedWindow = document.getElementById('filter-finished-window').value;
-    const onlyUnconfirmed = document.getElementById('filter-date-unconfirmed').checked;
+    const onlyConfirmed = document.getElementById('filter-date-confirmed').checked;
     syncAdminFilterControls();
     const now = Date.now();
     const windowMs = finishedWindow === 'all' ? null : Number(finishedWindow) * 60 * 60 * 1000;
@@ -392,16 +393,17 @@ function renderMatchList() {
         const matchesStatus = statusFilter === 'all' || (statusFilter === 'done' && done) || (statusFilter === 'pending' && !done);
         const estimatedEnd = new Date(m.match_date).getTime() + 2 * 60 * 60 * 1000;
         const matchesWindow = windowMs === null || (done && estimatedEnd <= now && estimatedEnd >= now - windowMs);
-        const matchesSchedule = !onlyUnconfirmed || m.schedule_confirmed !== true;
+        const matchesSchedule = !onlyConfirmed || m.schedule_confirmed === true;
         return matchesSearch && matchesStatus && matchesWindow && matchesSchedule;
     });
     if (filtered.length === 0) { container.innerHTML = warningHtml + `<p style="text-align:center; color:var(--text-muted); padding:20px;">Aucun match trouvé pour cette compétition.</p>`; return; }
     container.innerHTML = warningHtml + filtered.map(m => {
         const s1 = m.score1 !== null && m.score1 !== undefined ? m.score1 : '';
         const s2 = m.score2 !== null && m.score2 !== undefined ? m.score2 : '';
-        const dateNeedsConfirmation = m.schedule_confirmed !== true;
-        const scheduleBadge = dateNeedsConfirmation ? '<span class="schedule-badge" role="status">Date à confirmer</span>' : '';
-        return `<div class="match-item"><div class="match-info"><div class="match-title-line"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div>${scheduleBadge}</div><div class="match-meta">${dateNeedsConfirmation ? 'Date et heure à confirmer' : formatDateFr(m.match_date)} | ${escapeHtml(m.phase)} | Index: ${m.order_index}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button></div></div>`;
+        const isDateConfirmed = m.schedule_confirmed === true || m.schedule_confirmed === 'true';
+        const dateNeedsConfirmation = !isDateConfirmed;
+        const scheduleBadge = dateNeedsConfirmation ? '<div class="schedule-badge-row"><span class="schedule-badge" role="status">Date à confirmer</span></div>' : '';
+        return `<div class="match-item"><div class="match-info">${scheduleBadge}<div class="match-title-line"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div></div><div class="match-meta">${dateNeedsConfirmation ? 'Date et heure à confirmer' : formatDateFr(m.match_date)} | ${escapeHtml(m.phase)} | Index: ${m.order_index}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button></div></div>`;
     }).join('');
 }
 
