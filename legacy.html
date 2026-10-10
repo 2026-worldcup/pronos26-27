@@ -577,6 +577,10 @@ function formatDate(iso) {
     const d = new Date(iso);
     return d.toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 }
+function formatMatchDate(match) {
+    if (match && match.schedule_confirmed === false) return 'Date et heure à confirmer';
+    return formatDate(match ? match.match_date : null);
+}
 function getAvatarForPseudo(pseudo) {
     const p = globalRankList.find(x => x.pseudo === pseudo);
     return p ? p.avatar : '⚽';
@@ -753,7 +757,7 @@ function getMissingPronosList() {
     if (!session) return [];
     const now = new Date();
     const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-    return allMatches.filter(m => new Date(m.match_date) > now && new Date(m.match_date) <= in48h && !myPronostics[m.id]);
+    return allMatches.filter(m => m.schedule_confirmed !== false && new Date(m.match_date) > now && new Date(m.match_date) <= in48h && !myPronostics[m.id]);
 }
 function getMissingPronosForComp(code) {
     return getMissingPronosList().filter(m => m.competition === code);
@@ -802,7 +806,7 @@ function openMissingPronosModal() {
         body.innerHTML = `<p class="desc">🎉 Aucun pronostic manquant pour les prochaines 48h.</p>`;
     } else {
         body.innerHTML = missing.map(m => `<div class="prono-list-item" style="cursor:pointer;" onclick="closeMissingPronosModal(); showSection('${m.competition}', document.querySelector('[data-section-id=\\'${m.competition}\\']')); openMatchModal('${m.id}')">
-            <span><strong>${formatDate(m.match_date)}</strong><br><small>${escapeHTML(m.team1)} 🆚 ${escapeHTML(m.team2)}</small></span>
+            <span><strong>${formatMatchDate(m)}</strong><br><small>${escapeHTML(m.team1)} 🆚 ${escapeHTML(m.team2)}</small></span>
             <button class="btn primary" style="padding:6px 12px; font-size:.75rem;">Parier</button>
         </div>`).join('');
     }
@@ -845,6 +849,7 @@ async function syncFromSupabase() {
 function getMatchStatus(m) {
     const hasScore = m.score1 !== null && m.score1 !== undefined && m.score2 !== null && m.score2 !== undefined;
     if (hasScore) return 'done';
+    if (m.schedule_confirmed === false) return 'upcoming';
     const kickoff = new Date(m.match_date);
     if (new Date() >= kickoff) return 'live';
     return 'upcoming';
@@ -904,7 +909,7 @@ function renderMatchRowHTML(m) {
                 <span>${escapeHTML(m.team2)}</span>
             </div>
             <div class="match-meta">
-                <span>${formatDate(m.match_date)}</span>
+                <span>${formatMatchDate(m)}</span>
                 <div class="match-meta-right">${renderStatusBadge(status)}${pronoBadge}</div>
             </div>
         </div>`;
@@ -918,7 +923,7 @@ async function openMatchModal(matchId) {
     if (!m) return;
     currentActiveMatchId = matchId;
     document.getElementById('modal-teams').innerHTML = `<span>${escapeHTML(m.team1)}</span><span>${escapeHTML(m.team2)}</span>`;
-    document.getElementById('modal-date').innerText = formatDate(m.match_date);
+    document.getElementById('modal-date').innerText = formatMatchDate(m);
 
     const status = getMatchStatus(m);
     const session = getSession();
@@ -971,7 +976,7 @@ async function saveUserPronostic() {
     if (s1 === '' || s2 === '') { showToast("Merci d'indiquer un score pour les deux équipes.", "warning"); return; }
 
     const m = allMatches.find(x => x.id === currentActiveMatchId);
-    if (m && new Date() >= new Date(m.match_date)) { showToast("Ce match est verrouillé : il a débuté.", "warning"); return; }
+    if (m && m.schedule_confirmed !== false && new Date() >= new Date(m.match_date)) { showToast("Ce match est verrouillé : il a débuté.", "warning"); return; }
 
     const { error } = await supabaseClient.rpc('submit_pronostic', {
         p_pseudo: session.pseudo, p_code_hash: session.codeHash,
