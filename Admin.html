@@ -67,10 +67,13 @@ input, select { font-family: inherit; }
 /* EDIT MATCHES TABLE / LIST */
 .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
 .filter-bar input, .filter-bar select { flex: 1; min-width: 170px; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; color: #fff; }
+.finished-window-control { flex: 1 1 220px; min-width: 220px; }
+.finished-window-control select { width: 100%; min-width: 0; }
 .filter-check { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); font-size: .8rem; font-weight: 700; white-space: nowrap; }
 .filter-check input { flex: 0 0 auto; min-width: 0; accent-color: var(--primary); }
-#add-date-unconfirmed, #edit-confirmed { width: auto; padding: 0; accent-color: var(--primary); }
-.schedule-badge { display: inline-block; width: fit-content; margin-top: 5px; padding: 4px 8px; border-radius: 6px; background: #fef3c7; color: #92400e; font-size: .7rem; font-weight: 800; }
+#add-date-confirmed, #edit-confirmed { width: auto; padding: 0; accent-color: var(--primary); }
+.schedule-badge { display: inline-flex; align-items: center; width: fit-content; margin: 0; padding: 6px 10px; border: 1px solid #f59e0b; border-radius: 999px; background: #fef3c7; color: #78350f; font-size: .75rem; font-weight: 800; line-height: 1.2; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
+.match-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 
 .match-item { background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 16px; align-items: center; }
 .match-info { display: flex; flex-direction: column; gap: 4px; }
@@ -153,7 +156,7 @@ input, select { font-family: inherit; }
                     <input type="datetime-local" id="add-date" required>
                 </div>
                 <div class="form-group">
-                    <label class="filter-check" style="height:100%; justify-content:flex-start; text-transform:none;"><input type="checkbox" id="add-date-unconfirmed" checked> Date à confirmer</label>
+                    <label class="filter-check" style="height:100%; justify-content:flex-start; text-transform:none;"><input type="checkbox" id="add-date-confirmed" checked> Date confirmée</label>
                 </div>
                 <div class="form-group">
                     <label>Phase / Journée</label>
@@ -178,17 +181,19 @@ input, select { font-family: inherit; }
     <div id="tab-edit" class="card" style="display:none;">
         <div class="filter-bar">
             <input type="text" id="filter-search" placeholder="Rechercher par équipe ou par phase..." oninput="renderMatchList()">
-            <select id="filter-match-status" aria-label="Filtrer les matchs terminés ou non terminés" onchange="renderMatchList()">
+            <select id="filter-match-status" aria-label="Filtrer les matchs terminés ou non terminés" onchange="handleStatusFilterChange()">
                 <option value="all">Tous les matchs</option>
                 <option value="done">Matchs terminés</option>
                 <option value="pending">Matchs non terminés</option>
             </select>
-            <select id="filter-finished-window" aria-label="Période des matchs terminés" onchange="if (this.value !== 'all') document.getElementById('filter-match-status').value = 'done'; renderMatchList()">
-                <option value="all">Toutes les dates de fin</option>
-                <option value="24">Terminés dans les dernières 24 heures</option>
-                <option value="48">Terminés dans les dernières 48 heures</option>
-                <option value="168">Terminés dans la dernière semaine</option>
-            </select>
+            <div class="finished-window-control" id="finished-window-control" style="display:none;">
+                <select id="filter-finished-window" aria-label="Période des matchs terminés" onchange="handleFinishedWindowChange()">
+                    <option value="all">Toutes les dates de fin</option>
+                    <option value="24">Terminés dans les dernières 24 heures</option>
+                    <option value="48">Terminés dans les dernières 48 heures</option>
+                    <option value="168">Terminés dans la dernière semaine</option>
+                </select>
+            </div>
             <label class="filter-check"><input type="checkbox" id="filter-date-unconfirmed" onchange="renderMatchList()"> Date à confirmer</label>
         </div>
         <div id="match-list-container">
@@ -222,7 +227,7 @@ input, select { font-family: inherit; }
             <div class="form-group" style="margin-bottom: 12px;">
                 <label for="edit-confirmed" style="display:flex; flex-direction:row; align-items:center; gap:10px; text-transform:none;">
                     <input type="checkbox" id="edit-confirmed" style="width:auto;">
-                    Date à confirmer
+                    Date confirmée
                 </label>
             </div>
             <div class="form-group" style="margin-bottom: 12px;">
@@ -331,11 +336,32 @@ async function handleAddMatch(e) {
     const orderIndex = parseInt(document.getElementById('add-order').value, 10);
     if (!team1 || !team2 || !dateVal || !phase) { showToast("Veuillez remplir tous les champs.", "error"); return; }
     const matchId = `${currentComp}-${Date.now()}`;
-    const schedule_confirmed = !document.getElementById('add-date-unconfirmed').checked;
+    const schedule_confirmed = document.getElementById('add-date-confirmed').checked;
     const newMatch = { id: matchId, competition: currentComp, team1, team2, match_date: new Date(dateVal).toISOString(), phase, order_index: orderIndex, schedule_confirmed, created_at: new Date().toISOString() };
     const { error } = await supabaseClient.from('matches').insert([newMatch]);
     if (error) showToast("Erreur lors de l'ajout : " + error.message, "error");
-    else { showToast("Match ajouté avec succès !"); document.getElementById('add-team1').value = ''; document.getElementById('add-team2').value = ''; document.getElementById('add-date').value = ''; document.getElementById('add-date-unconfirmed').checked = true; await loadMatches(); }
+    else { showToast("Match ajouté avec succès !"); document.getElementById('add-team1').value = ''; document.getElementById('add-team2').value = ''; document.getElementById('add-date').value = ''; document.getElementById('add-date-confirmed').checked = true; await loadMatches(); }
+}
+
+function handleStatusFilterChange() {
+    const status = document.getElementById('filter-match-status').value;
+    if (status !== 'done') document.getElementById('filter-finished-window').value = 'all';
+    syncAdminFilterControls();
+    renderMatchList();
+}
+
+function handleFinishedWindowChange() {
+    if (document.getElementById('filter-finished-window').value !== 'all') {
+        document.getElementById('filter-match-status').value = 'done';
+    }
+    syncAdminFilterControls();
+    renderMatchList();
+}
+
+function syncAdminFilterControls() {
+    const status = document.getElementById('filter-match-status').value;
+    const control = document.getElementById('finished-window-control');
+    if (control) control.style.display = status === 'done' ? '' : 'none';
 }
 
 function renderMatchList() {
@@ -344,6 +370,7 @@ function renderMatchList() {
     const statusFilter = document.getElementById('filter-match-status').value;
     const finishedWindow = document.getElementById('filter-finished-window').value;
     const onlyUnconfirmed = document.getElementById('filter-date-unconfirmed').checked;
+    syncAdminFilterControls();
     const now = Date.now();
     const windowMs = finishedWindow === 'all' ? null : Number(finishedWindow) * 60 * 60 * 1000;
     const futureByPhase = new Map();
@@ -364,16 +391,17 @@ function renderMatchList() {
         const done = m.score1 !== null && m.score1 !== undefined && m.score2 !== null && m.score2 !== undefined;
         const matchesStatus = statusFilter === 'all' || (statusFilter === 'done' && done) || (statusFilter === 'pending' && !done);
         const estimatedEnd = new Date(m.match_date).getTime() + 2 * 60 * 60 * 1000;
-        const matchesWindow = !done || windowMs === null || (estimatedEnd <= now && estimatedEnd >= now - windowMs);
-        const matchesSchedule = !onlyUnconfirmed || m.schedule_confirmed === false;
+        const matchesWindow = windowMs === null || (done && estimatedEnd <= now && estimatedEnd >= now - windowMs);
+        const matchesSchedule = !onlyUnconfirmed || m.schedule_confirmed !== true;
         return matchesSearch && matchesStatus && matchesWindow && matchesSchedule;
     });
     if (filtered.length === 0) { container.innerHTML = warningHtml + `<p style="text-align:center; color:var(--text-muted); padding:20px;">Aucun match trouvé pour cette compétition.</p>`; return; }
     container.innerHTML = warningHtml + filtered.map(m => {
         const s1 = m.score1 !== null && m.score1 !== undefined ? m.score1 : '';
         const s2 = m.score2 !== null && m.score2 !== undefined ? m.score2 : '';
-        const scheduleBadge = m.schedule_confirmed === false ? '<span class="schedule-badge">Date à confirmer</span>' : '';
-        return `<div class="match-item"><div class="match-info"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div><div class="match-meta">${m.schedule_confirmed === false ? 'Date et heure à confirmer' : formatDateFr(m.match_date)} | ${escapeHtml(m.phase)} | Index: ${m.order_index}</div>${scheduleBadge}</div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button></div></div>`;
+        const dateNeedsConfirmation = m.schedule_confirmed !== true;
+        const scheduleBadge = dateNeedsConfirmation ? '<span class="schedule-badge" role="status">Date à confirmer</span>' : '';
+        return `<div class="match-item"><div class="match-info"><div class="match-title-line"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div>${scheduleBadge}</div><div class="match-meta">${dateNeedsConfirmation ? 'Date et heure à confirmer' : formatDateFr(m.match_date)} | ${escapeHtml(m.phase)} | Index: ${m.order_index}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button></div></div>`;
     }).join('');
 }
 
@@ -401,7 +429,7 @@ function openEditModal(matchId) {
     document.getElementById('edit-team1').value = m.team1;
     document.getElementById('edit-team2').value = m.team2;
     document.getElementById('edit-date').value = toDatetimeLocal(m.match_date);
-    document.getElementById('edit-confirmed').checked = m.schedule_confirmed === false;
+    document.getElementById('edit-confirmed').checked = m.schedule_confirmed === true;
     document.getElementById('edit-phase').value = m.phase;
     document.getElementById('edit-order').value = m.order_index;
     document.getElementById('edit-modal').style.display = 'flex';
@@ -417,7 +445,7 @@ async function handleSaveEdit(e) {
     const dateVal = document.getElementById('edit-date').value;
     const phase = document.getElementById('edit-phase').value.trim();
     const order_index = parseInt(document.getElementById('edit-order').value, 10);
-    const schedule_confirmed = !document.getElementById('edit-confirmed').checked;
+    const schedule_confirmed = document.getElementById('edit-confirmed').checked;
     const { error } = await supabaseClient.from('matches').update({ team1, team2, match_date: new Date(dateVal).toISOString(), phase, order_index, schedule_confirmed }).eq('id', id);
     if (error) showToast("Erreur : " + error.message, "error");
     else { showToast("Match modifié avec succès !"); closeEditModal(); loadMatches(); }
