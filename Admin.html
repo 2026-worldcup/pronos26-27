@@ -69,6 +69,7 @@ input, select { font-family: inherit; }
 .filter-bar input, .filter-bar select { flex: 1; min-width: 170px; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; color: #fff; }
 .filter-check { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); font-size: .8rem; font-weight: 700; white-space: nowrap; }
 .filter-check input { flex: 0 0 auto; min-width: 0; accent-color: var(--primary); }
+#add-date-unconfirmed, #edit-confirmed { width: auto; padding: 0; accent-color: var(--primary); }
 .schedule-badge { display: inline-block; width: fit-content; margin-top: 5px; padding: 4px 8px; border-radius: 6px; background: #fef3c7; color: #92400e; font-size: .7rem; font-weight: 800; }
 
 .match-item { background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 16px; align-items: center; }
@@ -182,7 +183,7 @@ input, select { font-family: inherit; }
                 <option value="done">Matchs terminés</option>
                 <option value="pending">Matchs non terminés</option>
             </select>
-            <select id="filter-finished-window" aria-label="Période des matchs terminés" onchange="renderMatchList()">
+            <select id="filter-finished-window" aria-label="Période des matchs terminés" onchange="if (this.value !== 'all') document.getElementById('filter-match-status').value = 'done'; renderMatchList()">
                 <option value="all">Toutes les dates de fin</option>
                 <option value="24">Terminés dans les dernières 24 heures</option>
                 <option value="48">Terminés dans les dernières 48 heures</option>
