@@ -201,6 +201,12 @@ input, select { font-family: inherit; }
                 <input type="datetime-local" id="edit-date" required>
             </div>
             <div class="form-group" style="margin-bottom: 12px;">
+                <label for="edit-confirmed" style="display:flex; flex-direction:row; align-items:center; gap:10px; text-transform:none;">
+                    <input type="checkbox" id="edit-confirmed" style="width:auto;">
+                    Horaire confirmé officiellement
+                </label>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
                 <label>Phase</label>
                 <input type="text" id="edit-phase" required>
             </div>
@@ -333,7 +339,7 @@ function renderMatchList() {
     container.innerHTML = warningHtml + filtered.map(m => {
         const s1 = m.score1 !== null && m.score1 !== undefined ? m.score1 : '';
         const s2 = m.score2 !== null && m.score2 !== undefined ? m.score2 : '';
-        return `<div class="match-item"><div class="match-info"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div><div class="match-meta">📅 ${formatDateFr(m.match_date)} | 🏷️ ${escapeHtml(m.phase)} | Index: ${m.order_index}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button></div></div>`;
+        return `<div class="match-item"><div class="match-info"><div class="match-teams">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div><div class="match-meta">📅 ${formatDateFr(m.match_date)} | 🏷️ ${escapeHtml(m.phase)} | Index: ${m.order_index} ${m.schedule_confirmed === false ? '| Horaire à confirmer' : ''}</div></div><div class="score-inputs"><input type="number" min="0" id="score1-${m.id}" value="${s1}" placeholder="-"><span>:</span><input type="number" min="0" id="score2-${m.id}" value="${s2}" placeholder="-"><button class="btn btn-success btn-sm" onclick="saveScore('${m.id}')">💾 Score</button></div><div class="match-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${m.id}')">✏️ Modifier</button><button class="btn btn-danger btn-sm" onclick="deleteMatch('${m.id}')">🗑️</button></div></div>`;
     }).join('');
 }
 
@@ -361,6 +367,7 @@ function openEditModal(matchId) {
     document.getElementById('edit-team1').value = m.team1;
     document.getElementById('edit-team2').value = m.team2;
     document.getElementById('edit-date').value = toDatetimeLocal(m.match_date);
+    document.getElementById('edit-confirmed').checked = m.schedule_confirmed !== false;
     document.getElementById('edit-phase').value = m.phase;
     document.getElementById('edit-order').value = m.order_index;
     document.getElementById('edit-modal').style.display = 'flex';
@@ -376,7 +383,8 @@ async function handleSaveEdit(e) {
     const dateVal = document.getElementById('edit-date').value;
     const phase = document.getElementById('edit-phase').value.trim();
     const order_index = parseInt(document.getElementById('edit-order').value, 10);
-    const { error } = await supabaseClient.from('matches').update({ team1, team2, match_date: new Date(dateVal).toISOString(), phase, order_index }).eq('id', id);
+    const schedule_confirmed = document.getElementById('edit-confirmed').checked;
+    const { error } = await supabaseClient.from('matches').update({ team1, team2, match_date: new Date(dateVal).toISOString(), phase, order_index, schedule_confirmed }).eq('id', id);
     if (error) showToast("Erreur : " + error.message, "error");
     else { showToast("Match modifié avec succès !"); closeEditModal(); loadMatches(); }
 }
